@@ -8,12 +8,12 @@ Orchestrates the end-to-end flow:
   4. Valida    - tip photo is sent to the AI matching service for a similarity score.
   5. Colabora  - validator calls the on-chain contract to release the tiered reward.
 
-This file intentionally keeps storage in-memory (SQLite/Postgres would replace
-this in a real deployment) so the whole loop can be demoed without extra infra.
+Persistence lives in Supabase (Postgres + Storage) via db.py — vehicles/cases/tips
+are rows in Postgres, vehicle photos and ownership documents are Storage objects.
 """
 
+import mimetypes
 import os
-import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -21,9 +21,11 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel
 from web3 import Web3
+
+import db
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -46,15 +48,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- in-memory "database" for the hackathon MVP ---
-vehicles: dict[str, dict] = {}
-cases: dict[str, dict] = {}
-tips: dict[str, dict] = {}
-
 
 class TheftReport(BaseModel):
     vehicle_id: str
     reward_amount: float  # in stablecoin units
+    theft_location: str  # place where the vehicle was stolen/last seen
+    theft_description: Optional[str] = None  # free-text circumstances/details of the theft
     onchain_case_id: Optional[int] = None  # filled after reportarVehiculoRobado() tx
 
 
@@ -67,14 +66,16 @@ async def register_vehicle(
     brand: str,
     model: str,
     color: str,
+    year: str,
+    ruat_number: str,  # RUAT / vehicle registration number, for ownership validation
+    description: Optional[str] = None,  # free-text distinctive characteristics
     reference_photos: list[UploadFile] = File(...),
+    ownership_document: UploadFile = File(...),  # documento de compra-venta / proof of ownership
 ):
-    vehicle_id = str(uuid.uuid4())
-    photos = [
-        {"bytes": await photo.read(), "content_type": photo.content_type or "image/jpeg"}
-        for photo in reference_photos
-    ]
-    vehicles[vehicle_id] = {
+    photo_bytes = [(await photo.read(), photo.content_type or "image/jpeg") for photo in reference_photos]
+    ownership_doc_bytes = await ownership_document.read()
+
+    vehicle = db.insert_vehicle({
         "owner_name": owner_name,
         "plate": plate,
         "doc_id_hash": doc_id_hash,
@@ -82,14 +83,27 @@ async def register_vehicle(
         "brand": brand,
         "model": model,
         "color": color,
-        "photos": photos,
-    }
-    return {"vehicle_id": vehicle_id, "photo_count": len(photos)}
+        "year": year,
+        "ruat_number": ruat_number,
+        "description": description,
+        "photo_count": len(photo_bytes),
+    })
+    vehicle_id = vehicle["id"]
+
+    for index, (content, content_type) in enumerate(photo_bytes):
+        db.upload_vehicle_photo(vehicle_id, index, content, content_type)
+    db.upload_ownership_document(
+        vehicle_id, ownership_doc_bytes,
+        ownership_document.content_type or "application/octet-stream",
+        ownership_document.filename or "document",
+    )
+
+    return {"vehicle_id": vehicle_id, "photo_count": len(photo_bytes)}
 
 
 @app.get("/vehicles/{vehicle_id}")
 async def get_vehicle(vehicle_id: str):
-    vehicle = vehicles.get(vehicle_id)
+    vehicle = db.get_vehicle(vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="vehicle not found")
     return {
@@ -99,70 +113,117 @@ async def get_vehicle(vehicle_id: str):
         "brand": vehicle["brand"],
         "model": vehicle["model"],
         "color": vehicle["color"],
-        "photo_count": len(vehicle["photos"]),
+        "year": vehicle["year"],
+        "ruat_number": vehicle["ruat_number"],
+        "description": vehicle["description"],
+        "photo_count": vehicle["photo_count"],
     }
 
 
 @app.get("/vehicles/{vehicle_id}/photo")
 async def get_vehicle_photo(vehicle_id: str, index: int = 0):
-    vehicle = vehicles.get(vehicle_id)
-    if not vehicle or index < 0 or index >= len(vehicle["photos"]):
+    vehicle = db.get_vehicle(vehicle_id)
+    if not vehicle or index < 0 or index >= vehicle["photo_count"]:
         raise HTTPException(status_code=404, detail="photo not found")
-    photo = vehicle["photos"][index]
-    return Response(content=photo["bytes"], media_type=photo["content_type"])
+    return RedirectResponse(db.vehicle_photo_public_url(vehicle_id, index))
+
+
+@app.get("/vehicles/{vehicle_id}/ownership-document")
+async def get_ownership_document(vehicle_id: str):
+    """Only meant for the validator/owner to review during a manual recovery
+    confirmation — never linked from the public board (it's a KYC document,
+    kept in a private Storage bucket)."""
+    vehicle = db.get_vehicle(vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="vehicle not found")
+    result = db.download_ownership_document(vehicle_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="document not found")
+    content, filename = result
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    return Response(content=content, media_type=content_type)
 
 
 @app.post("/cases/report-theft")
 async def report_theft(payload: TheftReport):
-    if payload.vehicle_id not in vehicles:
+    if not db.get_vehicle(payload.vehicle_id):
         return {"error": "vehicle not found"}
 
     onchain_case_id = payload.onchain_case_id
     if onchain_case_id is None and CONTRACT_ADDRESS and VALIDATOR_PRIVATE_KEY and STABLECOIN_ADDRESS:
         onchain_case_id = _open_case_onchain(payload.reward_amount)
 
-    case_id = str(uuid.uuid4())
-    cases[case_id] = {
+    case = db.insert_case({
         "vehicle_id": payload.vehicle_id,
         "reward_amount": payload.reward_amount,
+        "theft_location": payload.theft_location,
+        "theft_description": payload.theft_description,
         "onchain_case_id": onchain_case_id,
         "status": "open",
-    }
-    return {"case_id": case_id, "onchain_case_id": onchain_case_id}
+    })
+    return {"case_id": case["id"], "onchain_case_id": onchain_case_id}
 
 
-def _serialize_case(case_id: str, case: dict) -> dict:
-    vehicle = vehicles[case["vehicle_id"]]
+def _serialize_case_row(row: dict) -> dict:
+    vehicle = row["vehicles"]
     return {
-        "case_id": case_id,
-        "vehicle_id": case["vehicle_id"],
+        "case_id": row["id"],
+        "vehicle_id": vehicle["id"],
         "plate": vehicle["plate"],
         "brand": vehicle["brand"],
         "model": vehicle["model"],
         "color": vehicle["color"],
-        "photo_count": len(vehicle["photos"]),
+        "year": vehicle["year"],
+        "description": vehicle["description"],
+        "photo_count": vehicle["photo_count"],
         "owner_name": vehicle["owner_name"],
         "owner_wallet": vehicle["owner_wallet"],
-        "reward_amount": case["reward_amount"],
-        "status": case["status"],
-        "onchain_case_id": case["onchain_case_id"],
+        "reward_amount": row["reward_amount"],
+        "theft_location": row["theft_location"],
+        "theft_description": row["theft_description"],
+        "status": row["status"],
+        "onchain_case_id": row["onchain_case_id"],
+        "reported_at": row["reported_at"],
     }
 
 
 @app.get("/cases")
 async def list_cases(owner_wallet: Optional[str] = None):
     """Public board of all reported vehicles, or (with ?owner_wallet=) just the
-    cases filed by that owner, for the "Mis denuncias" view."""
-    items = [_serialize_case(cid, c) for cid, c in cases.items()]
-    if owner_wallet:
-        items = [c for c in items if c["owner_wallet"].lower() == owner_wallet.lower()]
-    items.sort(key=lambda c: c["case_id"], reverse=True)
-    return items
+    cases filed by that owner, for the "Mis denuncias" view. Newest first."""
+    rows = db.list_cases_joined(owner_wallet)
+    return [_serialize_case_row(r) for r in rows]
 
 
 @app.get("/cases/{case_id}/tips")
 async def list_case_tips(case_id: str):
-    return [{"tip_id": tid, **t} for tid, t in tips.items() if t["case_id"] == case_id]
+    rows = db.list_tips_for_case(case_id)
+    return [{**t, "tip_id": t["id"]} for t in rows]
+
+
+@app.get("/tips/recent")
+async def list_recent_tips(limit: int = 10):
+    """Latest community-submitted tips across every case, newest first — for
+    the "Últimos reportes" activity feed on the public board."""
+    rows = db.list_recent_tips_joined(limit)
+    items = []
+    for t in rows:
+        case = t["cases"]
+        vehicle = case["vehicles"]
+        items.append({
+            "tip_id": t["id"],
+            "case_id": case["id"],
+            "plate": vehicle["plate"],
+            "brand": vehicle["brand"],
+            "model": vehicle["model"],
+            "tier": t["tier"],
+            "similarity": t["similarity"],
+            "latitude": t["latitude"],
+            "longitude": t["longitude"],
+            "location_note": t["location_note"],
+            "created_at": t["created_at"],
+        })
+    return items
 
 
 @app.post("/cases/{case_id}/tips")
@@ -174,12 +235,12 @@ async def submit_tip(
     longitude: Optional[float] = Form(None),
     location_note: Optional[str] = Form(None),
 ):
-    case = cases.get(case_id)
+    case = db.get_case(case_id)
     if not case:
         return {"error": "case not found"}
     if not Web3.is_address(collaborator_wallet):
         return {"error": "collaborator_wallet is not a valid address"}
-    vehicle = vehicles[case["vehicle_id"]]
+    vehicle = db.get_vehicle(case["vehicle_id"])
 
     tip_photo_bytes = [await p.read() for p in tip_photos]
 
@@ -188,10 +249,13 @@ async def submit_tip(
     # needs ONE of their shots to line up with ONE of the owner's references.
     best_result = {"similarity": 0.0, "tier": "sin_coincidencia"}
     async with httpx.AsyncClient() as client:
-        for photo in vehicle["photos"]:
+        for index in range(vehicle["photo_count"]):
+            ref_url = db.vehicle_photo_public_url(vehicle["id"], index)
+            ref_resp = await client.get(ref_url, timeout=30.0)
+            ref_resp.raise_for_status()
             for tip_bytes in tip_photo_bytes:
                 files = {
-                    "reference_photo": ("reference.jpg", photo["bytes"], photo["content_type"]),
+                    "reference_photo": ("reference.jpg", ref_resp.content, "image/jpeg"),
                     "tip_photo": ("tip.jpg", tip_bytes, "image/jpeg"),
                 }
                 response = await client.post(AI_SERVICE_URL, files=files, timeout=30.0)
@@ -204,8 +268,7 @@ async def submit_tip(
     # released on-chain once the vehicle owner confirms the recovery (see
     # confirm_recovery below), so multiple collaborators' tiers can be
     # settled together at that point rather than one at a time.
-    tip_id = str(uuid.uuid4())
-    tips[tip_id] = {
+    tip = db.insert_tip({
         "case_id": case_id,
         "collaborator_wallet": collaborator_wallet,
         "similarity": best_result["similarity"],
@@ -214,9 +277,9 @@ async def submit_tip(
         "longitude": longitude,
         "location_note": location_note,
         "paid": False,
-    }
+    })
 
-    return {"tip_id": tip_id, **tips[tip_id]}
+    return {"tip_id": tip["id"], **tip}
 
 
 TIER_BPS = {"informacion_util": 1000, "evidencia_clave": 3000, "recompensa_total": 10000}
@@ -228,7 +291,7 @@ async def confirm_recovery(case_id: str, collaborator_wallet: str = Form(...)):
     in a single step: the incremental on-chain reward for every collaborator
     whose tip is still pending (in ascending tier order), plus the final
     FullRecovery bonus to the collaborator credited with the recovery."""
-    case = cases.get(case_id)
+    case = db.get_case(case_id)
     if not case:
         return {"error": "case not found"}
 
@@ -236,8 +299,8 @@ async def confirm_recovery(case_id: str, collaborator_wallet: str = Form(...)):
     if CONTRACT_ADDRESS and VALIDATOR_PRIVATE_KEY and case["onchain_case_id"] is not None:
         paid_out_bps = 0
         pending = [
-            t for t in tips.values()
-            if t["case_id"] == case_id and not t["paid"] and t["tier"] != "sin_coincidencia"
+            t for t in db.list_tips_for_case(case_id)
+            if not t["paid"] and t["tier"] != "sin_coincidencia"
         ]
         pending.sort(key=lambda t: TIER_BPS[t["tier"]])
 
@@ -252,17 +315,16 @@ async def confirm_recovery(case_id: str, collaborator_wallet: str = Form(...)):
             except Exception as exc:
                 # One bad tip (e.g. a malformed wallet that slipped in, or a
                 # transient RPC error) must not block payouts to everyone else.
-                tip["payout_error"] = str(exc)
+                db.update_tip(tip["id"], {"payout_error": str(exc)})
                 continue
-            tip["paid"] = True
-            tip["tx_hash"] = tx_hash
+            db.update_tip(tip["id"], {"paid": True, "tx_hash": tx_hash})
             tx_hashes.append(tx_hash)
             paid_out_bps = TIER_BPS[tip["tier"]]
 
         recovery_tx = _reward_tip_onchain(case, collaborator_wallet, "recompensa_total")
         tx_hashes.append(recovery_tx)
 
-    case["status"] = "closed"
+    db.update_case(case_id, {"status": "closed"})
     return {"status": "closed", "tx_hashes": tx_hashes}
 
 

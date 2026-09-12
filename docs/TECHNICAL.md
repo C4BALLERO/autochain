@@ -44,7 +44,7 @@
 
 ### Backend (`main.py`)
 - Orquesta el flujo completo: registro → caso → pistas → validación IA → payout on-chain.
-- Almacenamiento en memoria para el MVP; listo para migrar a Postgres/SQLite sin cambiar la API pública.
+- Persistencia en Supabase (Postgres + Storage, plan gratuito): las tablas `vehicles`/`cases`/`tips` viven en Postgres (ver `backend/supabase_schema.sql`); las fotos del vehículo y el documento de compra-venta se guardan en dos buckets de Storage (`vehicle-photos` público, `ownership-documents` privado). Todo el acceso pasa por `backend/db.py`.
 
 ## Seguridad y privacidad (KYC)
 

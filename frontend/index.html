@@ -188,10 +188,11 @@
   label { display: block; font-size: 13px; color: var(--text-dim); margin: 10px 0 4px; }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .field-row.three { grid-template-columns: 1fr 1fr 1fr; }
-  input[type=text], input[type=number] {
+  input[type=text], input[type=number], textarea {
     width: 100%; background: #101114; border: 1px solid var(--line); color: var(--text);
-    border-radius: 6px; padding: 9px 11px; font-size: 14px;
+    border-radius: 6px; padding: 9px 11px; font-size: 14px; font-family: inherit;
   }
+  textarea { resize: vertical; min-height: 64px; }
   input[type=file] { font-size: 13px; color: var(--text-dim); }
   .photo-gallery { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
   .photo-gallery img {
@@ -266,8 +267,49 @@
   .tip-row label { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: var(--text); cursor: pointer; }
   .tip-row .wallet { font-family: "Courier New", monospace; }
   .tip-row .tip-location { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 5px; margin-left: 24px; }
-  .tip-map { width: 220px; height: 140px; border-radius: 8px; border: 1px solid var(--line); margin: 6px 0 2px 24px; overflow: hidden; background: #101114; }
+  .tip-map-wrapper { position: relative; width: 220px; margin: 6px 0 2px 24px; cursor: pointer; }
+  .tip-map { width: 220px; height: 140px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; background: #101114; }
   .tip-map.missing { display: none; }
+  .tip-map-wrapper:has(.tip-map.missing) { display: none; }
+  .tip-map-expand-hint {
+    position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 6px;
+    background: rgba(0,0,0,.6); color: #fff; display: flex; align-items: center; justify-content: center;
+    pointer-events: none; opacity: 0; transition: opacity .15s ease;
+  }
+  .tip-map-wrapper:hover .tip-map-expand-hint { opacity: 1; }
+  .tip-map-expand-hint svg.icon { width: 14px; height: 14px; }
+
+  .map-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75);
+    z-index: 1000; align-items: center; justify-content: center; padding: 24px;
+  }
+  .map-modal.open { display: flex; }
+  .map-modal-content {
+    position: relative; width: min(90vw, 900px); height: min(80vh, 600px);
+    background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  }
+  .map-modal-map { width: 100%; height: 100%; }
+  .map-modal-close {
+    position: absolute; top: 10px; right: 10px; z-index: 10; width: 36px; height: 36px;
+    border-radius: 8px; background: rgba(0,0,0,.6); color: #fff; border: none;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0;
+  }
+  .map-modal-close svg.icon { width: 18px; height: 18px; }
+
+  .case-card .theft-info { font-size: 13px; color: var(--text-dim); margin: 4px 0; display: flex; gap: 6px; }
+  .case-card .theft-info svg.icon { flex-shrink: 0; margin-top: 2px; }
+  .case-card .description { font-size: 12.5px; color: var(--text-dim); margin: 4px 0; font-style: italic; }
+  .case-card .reported-at { font-size: 11.5px; color: var(--text-dim); margin-top: auto; padding-top: 8px; }
+
+  .activity-feed { margin-bottom: 24px; }
+  .activity-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--asphalt-2);
+    border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; font-size: 13px;
+  }
+  .activity-item .activity-icon { color: var(--hazard); flex-shrink: 0; }
+  .activity-item .activity-text { flex: 1; color: var(--text); }
+  .activity-item .activity-text b { color: var(--text); }
+  .activity-item .activity-time { color: var(--text-dim); font-size: 12px; white-space: nowrap; }
   .empty-msg { color: var(--text-dim); font-size: 13.5px; padding: 8px 0; }
 
   footer { color: var(--text-dim); font-size: 12px; text-align: center; margin-top: 40px; }
@@ -362,9 +404,27 @@
         </div>
       </div>
 
+      <div class="field-row">
+        <div>
+          <label>Año</label>
+          <input type="text" id="year" placeholder="2019" />
+        </div>
+        <div>
+          <label>N° RUAT (registro vehicular)</label>
+          <input type="text" id="ruatNumber" placeholder="RUAT-000000" />
+        </div>
+      </div>
+
+      <label>Características adicionales (opcional: rayones, calcomanías, modificaciones, etc.)</label>
+      <textarea id="description" placeholder="Ej: rin de aleación, calcomanía de rayas en el capó, espejo derecho roto…"></textarea>
+
       <label>Fotos de referencia del vehículo (puedes elegir varias: frontal, lateral, placa…)</label>
       <input type="file" id="referencePhotos" accept="image/*" multiple onchange="previewFiles(this, 'previewReferenceGallery')" />
       <div class="photo-gallery" id="previewReferenceGallery"></div>
+
+      <label>Documento de compra-venta (para validar que el vehículo es tuyo)</label>
+      <input type="file" id="ownershipDocument" accept="image/*,application/pdf" />
+
       <br/>
       <button onclick="registerVehicle()">Registrar vehículo</button>
       <div class="result" id="result-register"></div>
@@ -379,6 +439,10 @@
     <div class="stage" id="stage-case">
       <h2><span class="n">2.</span> Publica — reporta el robo y fija la recompensa</h2>
       <p class="desc">Carga de datos clave; el monto se bloquea en el contrato en stablecoin hasta que se pague a los colaboradores.</p>
+      <label>Lugar del robo</label>
+      <input type="text" id="theftLocation" placeholder="Ej: Av. Blanco Galindo km 5, Cochabamba" />
+      <label>Descripción del robo (opcional)</label>
+      <textarea id="theftDescription" placeholder="Ej: sustraído de la vía pública en la noche, tenía alarma pero fue forzado…"></textarea>
       <label>Monto de recompensa (stablecoin)</label>
       <input type="number" id="rewardAmount" placeholder="200" />
       <br/>
@@ -438,11 +502,23 @@
   <!-- ============ TAB: AUTOS PERDIDOS ============ -->
   <div class="tab-panel" id="tab-public">
     <p class="desc" style="margin-bottom:16px;">Todos los veh&iacute;culos reportados como robados en AutoChain. Si reconoces alguno, sube una pista con foto y ubicaci&oacute;n.</p>
+
+    <div class="section-title" style="text-align:left; font-size:16px; margin-bottom:10px;">Últimos reportes de la comunidad</div>
+    <div class="activity-feed" id="activityFeed"></div>
+
+    <div class="section-title" style="text-align:left; font-size:16px; margin-bottom:10px;">Vehículos reportados (más recientes primero)</div>
     <div id="publicList"></div>
   </div>
 
   <footer>AutoChain · HSK Chain Track · Buildathon Ethereum Bolivia 2026</footer>
 </div>
+</div>
+
+<div class="map-modal" id="mapModal" onclick="if (event.target === this) closeMapModal()">
+  <div class="map-modal-content">
+    <button type="button" class="map-modal-close" onclick="closeMapModal()" id="mapModalClose"></button>
+    <div class="map-modal-map" id="mapModalMap"></div>
+  </div>
 </div>
 
 <script>
@@ -461,6 +537,8 @@
     list: '<svg class="icon" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
     chevronLeft: '<svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>',
     chevronRight: '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',
+    maximize: '<svg class="icon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>',
+    x: '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   };
 
   document.getElementById("icon-alert").innerHTML = ICONS.alert + "<span>ROBADO</span>";
@@ -474,6 +552,7 @@
   document.getElementById("step-icon-4").innerHTML = ICONS.cpu;
   document.getElementById("step-icon-5").innerHTML = ICONS.link;
   document.getElementById("brand-mark").innerHTML = ICONS.link;
+  document.getElementById("mapModalClose").innerHTML = ICONS.x;
   document.getElementById("navtab-report").innerHTML = ICONS.clipboard + " Reportar";
   document.getElementById("navtab-mine").innerHTML = ICONS.list + " Mis denuncias";
   document.getElementById("navtab-public").innerHTML = ICONS.car + " Autos perdidos reportados";
@@ -498,7 +577,7 @@
     document.getElementById(`tab-${name}`).classList.add("active");
     document.getElementById(`navtab-${name}`).classList.add("active");
     if (name === "mine") loadMyCases();
-    if (name === "public") loadPublicCases();
+    if (name === "public") { loadPublicCases(); loadActivityFeed(); }
   }
 
   function goToApp(tabName) {
@@ -522,6 +601,18 @@
     return `${w.slice(0, 6)}…${w.slice(-4)}`;
   }
 
+  function timeAgo(isoString) {
+    if (!isoString) return "";
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return "hace un momento";
+    if (mins < 60) return `hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `hace ${hours} h`;
+    const days = Math.floor(hours / 24);
+    return `hace ${days} d`;
+  }
+
   function locationLabel(t) {
     if (t.location_note) return t.location_note;
     if (t.latitude != null && t.longitude != null) return `${t.latitude.toFixed(4)}, ${t.longitude.toFixed(4)}`;
@@ -535,7 +626,58 @@
     if (t.latitude == null || t.longitude == null) return "";
     const mapId = `tipmap-${tipId}`;
     pendingMapInits.push({ mapId, lat: t.latitude, lon: t.longitude });
-    return `<div class="tip-map" id="${mapId}"></div>`;
+    return `
+      <div class="tip-map-wrapper" onclick="openMapModal(${t.latitude}, ${t.longitude})">
+        <div class="tip-map" id="${mapId}"></div>
+        <div class="tip-map-expand-hint">${ICONS.maximize}</div>
+      </div>
+    `;
+  }
+
+  let modalMapInstance = null;
+
+  function openMapModal(lat, lon) {
+    const modal = document.getElementById("mapModal");
+    modal.classList.add("open");
+    if (typeof L === "undefined") return;
+    if (modalMapInstance) {
+      modalMapInstance.remove();
+      modalMapInstance = null;
+    }
+    // Leaflet needs the container visible+sized before init; a microtask
+    // delay lets the "open" class take effect first.
+    setTimeout(() => {
+      modalMapInstance = L.map("mapModalMap").setView([lat, lon], 15);
+      addBaseTiles(modalMapInstance);
+      L.marker([lat, lon]).addTo(modalMapInstance);
+    }, 0);
+  }
+
+  function closeMapModal() {
+    document.getElementById("mapModal").classList.remove("open");
+    if (modalMapInstance) {
+      modalMapInstance.remove();
+      modalMapInstance = null;
+    }
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeMapModal();
+  });
+
+  // Esri's "World Dark Gray" basemap is free for app usage without an API key
+  // (unlike tile.openstreetmap.org, which blocks app/bulk traffic under its
+  // usage policy, and CARTO's basemaps, which now require a key). Two layers:
+  // the dark canvas plus a labels/streets overlay on top.
+  function addBaseTiles(map) {
+    const attribution = "Esri, HERE, Garmin, © OpenStreetMap contributors";
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 16,
+      attribution,
+    }).addTo(map);
+    return L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 16,
+    }).addTo(map);
   }
 
   function initPendingTipMaps() {
@@ -547,7 +689,7 @@
       try {
         const map = L.map(mapId, { attributionControl: false, zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
         map.setView([lat, lon], 15);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+        addBaseTiles(map);
         L.marker([lat, lon]).addTo(map);
       } catch (e) {
         el.classList.add("missing");
@@ -600,17 +742,22 @@
     const brand = document.getElementById("brand").value;
     const model = document.getElementById("model").value;
     const color = document.getElementById("color").value;
+    const year = document.getElementById("year").value;
+    const ruatNumber = document.getElementById("ruatNumber").value;
+    const description = document.getElementById("description").value;
     const files = document.getElementById("referencePhotos").files;
-    if (!ownerName || !ownerWallet || !plate || !brand || !model || !color || files.length === 0) {
-      return alert("Completa todos los campos y sube al menos una foto.");
+    const ownershipDoc = document.getElementById("ownershipDocument").files[0];
+    if (!ownerName || !ownerWallet || !plate || !brand || !model || !color || !year || !ruatNumber || files.length === 0 || !ownershipDoc) {
+      return alert("Completa todos los campos, sube al menos una foto y el documento de compra-venta.");
     }
 
     const form = new FormData();
     Array.from(files).forEach((f) => form.append("reference_photos", f));
+    form.append("ownership_document", ownershipDoc);
 
     const params = new URLSearchParams({
       owner_name: ownerName, plate, doc_id_hash: "demo-hash", owner_wallet: ownerWallet,
-      brand, model, color,
+      brand, model, color, year, ruat_number: ruatNumber, description,
     });
     const res = await fetch(`${API_BASE}/vehicles/register?${params}`, { method: "POST", body: form });
     const data = await res.json();
@@ -634,10 +781,16 @@
 
   async function reportTheft() {
     const rewardAmount = document.getElementById("rewardAmount").value;
+    const theftLocation = document.getElementById("theftLocation").value;
+    const theftDescription = document.getElementById("theftDescription").value;
+    if (!theftLocation) return alert("Indica el lugar del robo.");
     const res = await fetch(`${API_BASE}/cases/report-theft`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vehicle_id: vehicleId, reward_amount: Number(rewardAmount) }),
+      body: JSON.stringify({
+        vehicle_id: vehicleId, reward_amount: Number(rewardAmount),
+        theft_location: theftLocation, theft_description: theftDescription || null,
+      }),
     });
     const data = await res.json();
     caseId = data.case_id;
@@ -755,8 +908,10 @@
             <span class="plate-label">${c.plate}</span>
             <span class="status-pill status-${c.status}">${c.status === "open" ? "Abierto" : "Recuperado"}</span>
           </div>
-          <div class="specs">${ICONS.car} ${c.brand} ${c.model} · ${c.color}</div>
+          <div class="specs">${ICONS.car} ${c.brand} ${c.model} ${c.year} · ${c.color}</div>
+          <div class="theft-info">${ICONS.pin} ${c.theft_location}</div>
           <div class="meta">Recompensa: ${c.reward_amount} stablecoin</div>
+          <div class="reported-at">Reportado ${timeAgo(c.reported_at)}</div>
           <div class="tips-list" id="tips-for-${c.case_id}"><span class="empty-msg">Cargando pistas…</span></div>
         </div>
       `;
@@ -871,13 +1026,40 @@
             <span class="plate-label">${c.plate}</span>
             <span class="status-pill status-${c.status}">${c.status === "open" ? "Buscando" : "Recuperado"}</span>
           </div>
-          <div class="specs">${ICONS.car} ${c.brand} ${c.model} · ${c.color}</div>
+          <div class="specs">${ICONS.car} ${c.brand} ${c.model} ${c.year} · ${c.color}</div>
+          <div class="theft-info">${ICONS.pin} ${c.theft_location}</div>
+          ${c.description ? `<div class="description">"${c.description}"</div>` : ""}
+          ${c.theft_description ? `<div class="description">${c.theft_description}</div>` : ""}
           <div class="meta">Recompensa: ${c.reward_amount} stablecoin</div>
           ${c.status === "open" ? `<button class="secondary small" onclick="startTipFor('${c.case_id}', '${c.plate} · ${c.brand} ${c.model}')">Subir una pista</button>` : ""}
+          <div class="reported-at">Reportado ${timeAgo(c.reported_at)}</div>
         </div>
       `;
       list.appendChild(card);
     }
+  }
+
+  async function loadActivityFeed() {
+    const feed = document.getElementById("activityFeed");
+    feed.innerHTML = `<p class="empty-msg">Cargando…</p>`;
+    const res = await fetch(`${API_BASE}/tips/recent?limit=8`);
+    const recentTips = await res.json();
+
+    if (recentTips.length === 0) {
+      feed.innerHTML = `<p class="empty-msg">Todavía no hay pistas enviadas por la comunidad.</p>`;
+      return;
+    }
+
+    feed.innerHTML = recentTips.map((t) => `
+      <div class="activity-item">
+        <span class="activity-icon">${ICONS.users}</span>
+        <span class="activity-text">Nueva pista para <b>${t.plate} · ${t.brand} ${t.model}</b>
+          <span class="tier-pill tier-${t.tier}">${t.tier.replace('_',' ')}</span>
+          ${t.location_note ? ` — ${t.location_note}` : ""}
+        </span>
+        <span class="activity-time">${timeAgo(t.created_at)}</span>
+      </div>
+    `).join("");
   }
 </script>
 </body>

@@ -48,7 +48,14 @@ npm run deploy:hsk-testnet
 
 Copia la dirección del contrato desplegado en `.env` como `AUTOCHAIN_CONTRACT_ADDRESS`, y registra la wallet validadora con `asignarValidador(address, true)`.
 
-### 2. Servicio de IA
+### 2. Base de datos (Supabase, gratis)
+
+1. Crea un proyecto en [supabase.com](https://supabase.com).
+2. En **SQL Editor**, corre `backend/supabase_schema.sql` (crea las tablas `vehicles`, `cases`, `tips`).
+3. En **Project Settings → API**, copia el **Project URL** y la **secret key** a `.env` como `SUPABASE_URL` y `SUPABASE_SECRET_KEY`.
+4. Los buckets de almacenamiento (`vehicle-photos` público, `ownership-documents` privado) se crean automáticamente la primera vez que corre el backend.
+
+### 3. Servicio de IA
 
 ```bash
 cd backend
@@ -56,14 +63,14 @@ pip install -r requirements.txt
 uvicorn ai_matching_service:app --reload --port 8001
 ```
 
-### 3. API principal
+### 4. API principal
 
 ```bash
 cd backend
 uvicorn main:app --reload --port 8000
 ```
 
-### 4. Frontend
+### 5. Frontend
 
 Abre `frontend/index.html` en el navegador (o sírvelo con cualquier servidor estático). Si tu API no corre en `localhost:8000`, define `window.AUTOCHAIN_API_BASE` antes de cargar el script.
 
