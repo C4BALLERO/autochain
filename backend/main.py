@@ -263,21 +263,29 @@ async def submit_tip(
     # on both sides) and keep the single best match — the collaborator only
     # needs ONE of their shots to line up with ONE of the owner's references.
     best_result = {"similarity": 0.0, "tier": "sin_coincidencia"}
-    async with httpx.AsyncClient() as client:
-        for index in range(vehicle["photo_count"]):
-            ref_url = db.vehicle_photo_public_url(vehicle["id"], index)
-            ref_resp = await client.get(ref_url, timeout=30.0)
-            ref_resp.raise_for_status()
-            for tip_bytes in tip_photo_bytes:
-                files = {
-                    "reference_photo": ("reference.jpg", ref_resp.content, "image/jpeg"),
-                    "tip_photo": ("tip.jpg", tip_bytes, "image/jpeg"),
-                }
-                response = await client.post(AI_SERVICE_URL, files=files, timeout=30.0)
-                response.raise_for_status()
-                result = response.json()
-                if result["similarity"] > best_result["similarity"]:
-                    best_result = result
+    ai_unavailable = False
+    try:
+        async with httpx.AsyncClient() as client:
+            for index in range(vehicle["photo_count"]):
+                ref_url = db.vehicle_photo_public_url(vehicle["id"], index)
+                ref_resp = await client.get(ref_url, timeout=30.0)
+                ref_resp.raise_for_status()
+                for tip_bytes in tip_photo_bytes:
+                    files = {
+                        "reference_photo": ("reference.jpg", ref_resp.content, "image/jpeg"),
+                        "tip_photo": ("tip.jpg", tip_bytes, "image/jpeg"),
+                    }
+                    response = await client.post(AI_SERVICE_URL, files=files, timeout=30.0)
+                    response.raise_for_status()
+                    result = response.json()
+                    if result["similarity"] > best_result["similarity"]:
+                        best_result = result
+    except httpx.HTTPError:
+        # The AI matching microservice isn't reachable from this deployment
+        # (e.g. it only runs locally for now, not alongside this API in
+        # production). Record the tip anyway instead of failing the whole
+        # submission — it just can't be auto-scored until AI is reachable.
+        ai_unavailable = True
 
     # Tips are scored immediately but NOT paid here: the reward only gets
     # released on-chain once the vehicle owner confirms the recovery (see
@@ -294,7 +302,7 @@ async def submit_tip(
         "paid": False,
     })
 
-    return {"tip_id": tip["id"], **tip}
+    return {"tip_id": tip["id"], **tip, "ai_unavailable": ai_unavailable}
 
 
 TIER_BPS = {"informacion_util": 1000, "evidencia_clave": 3000, "recompensa_total": 10000}

@@ -6,6 +6,12 @@ Bolivia registra ~3,500 denuncias de robo vehicular al año, y el 64% de esos ve
 
 > Proyecto construido para el **Buildathon Ethereum Bolivia 2026 — HSK Chain Track** (Payments / RWA / AI × Web3).
 
+**Demo en vivo:**
+- Frontend: https://autochain-hsk.vercel.app
+- API (Supabase en producción): https://autochain-hsk-api.vercel.app
+
+El servicio de IA (CLIP) no está desplegado en producción — sus dependencias (torch/CLIP, ~350MB) no caben en el límite de una función serverless de Vercel. En producción, el registro/reporte/consulta de casos funciona contra la base de datos real; la validación automática de pistas por IA solo corre localmente por ahora (ver roadmap).
+
 ## Cómo funciona
 
 1. **Reporta** — el propietario registra su vehículo (verificación KYC simplificada + foto de referencia).
@@ -59,9 +65,11 @@ Copia la dirección del contrato desplegado en `.env` como `AUTOCHAIN_CONTRACT_A
 
 ```bash
 cd backend
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-ai.txt
 uvicorn ai_matching_service:app --reload --port 8001
 ```
+
+(`requirements-ai.txt` trae torch/CLIP, separado del resto porque la API principal —y su despliegue en Vercel— no los necesita.)
 
 ### 4. API principal
 
@@ -73,6 +81,17 @@ uvicorn main:app --reload --port 8000
 ### 5. Frontend
 
 Abre `frontend/index.html` en el navegador (o sírvelo con cualquier servidor estático). Si tu API no corre en `localhost:8000`, define `window.AUTOCHAIN_API_BASE` antes de cargar el script.
+
+## Despliegue (Vercel)
+
+Frontend y API se despliegan como dos proyectos de Vercel separados (cada uno desde su propia carpeta):
+
+```bash
+cd frontend && vercel deploy --prod   # sitio estático + cabeceras de seguridad (vercel.json)
+cd backend  && vercel deploy --prod   # API FastAPI como función serverless (backend/api/index.py)
+```
+
+En el proyecto del backend, configura como variables de entorno de producción: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `AUTOCHAIN_CONTRACT_ADDRESS`, `VALIDATOR_PRIVATE_KEY`, `STABLECOIN_ADDRESS`, `HSK_RPC_URL` (con `vercel env add <NOMBRE> production`). El microservicio de IA no se despliega ahí — ver nota arriba.
 
 ## Enfoque de integración técnica
 

@@ -1,0 +1,6 @@
+.venv
+__pycache__
+*.pyc
+ai_matching_service.py
+requirements-ai.txt
+supabase_schema.sql

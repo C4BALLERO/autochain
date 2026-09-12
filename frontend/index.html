@@ -875,7 +875,12 @@
   document.getElementById("navtab-public").innerHTML = ICONS.car + " Autos perdidos reportados";
   document.getElementById("btn-location").innerHTML = ICONS.pin + " Obtener mi ubicación";
 
-  const API_BASE = window.AUTOCHAIN_API_BASE || "http://localhost:8000";
+  // Locally (file:// or plain localhost) this talks to your local backend;
+  // once deployed to a real domain it points at the production API instead.
+  const API_BASE = window.AUTOCHAIN_API_BASE
+    || (location.protocol === "file:" || location.hostname === "localhost"
+        ? "http://localhost:8000"
+        : "https://autochain-hsk-api.vercel.app");
   let vehicleId = null;
   let caseId = null;
   let capturedLocation = null; // { latitude, longitude }
