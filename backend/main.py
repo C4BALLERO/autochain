@@ -72,7 +72,17 @@ async def register_vehicle(
     reference_photos: list[UploadFile] = File(...),
     ownership_document: UploadFile = File(...),  # documento de compra-venta / proof of ownership
 ):
-    photo_bytes = [(await photo.read(), photo.content_type or "image/jpeg") for photo in reference_photos]
+    # Videos are accepted here so the frontend can preview them alongside
+    # photos before submitting, but only static images get persisted/matched
+    # — the gallery views and the CLIP-based AI comparison only handle images.
+    photo_bytes = []
+    for photo in reference_photos:
+        content = await photo.read()
+        content_type = photo.content_type or "image/jpeg"
+        if content_type.startswith("image/"):
+            photo_bytes.append((content, content_type))
+    if not photo_bytes:
+        raise HTTPException(status_code=400, detail="Sube al menos una foto (los videos no se guardan todavía, solo se previsualizan).")
     ownership_doc_bytes = await ownership_document.read()
 
     vehicle = db.insert_vehicle({
@@ -242,7 +252,12 @@ async def submit_tip(
         return {"error": "collaborator_wallet is not a valid address"}
     vehicle = db.get_vehicle(case["vehicle_id"])
 
-    tip_photo_bytes = [await p.read() for p in tip_photos]
+    # Same rule as vehicle registration: videos are useful supporting context
+    # for the person reviewing tips later, but only images go into the CLIP
+    # comparison below (the AI matching service only understands images).
+    tip_photo_bytes = [
+        await p.read() for p in tip_photos if (p.content_type or "").startswith("image/")
+    ]
 
     # Compare every tip photo against every reference photo (different angles
     # on both sides) and keep the single best match — the collaborator only

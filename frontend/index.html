@@ -8,66 +8,95 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root {
-    --asphalt: #17181b;
-    --asphalt-2: #1f2125;
-    --line: #2c2f34;
-    --plate-blue: #1f4fd8;
-    --hazard: #f2b705;
-    --text: #eceef1;
-    --text-dim: #9aa0aa;
-    --ok: #3ecf7a;
-    --danger: #ff5f5f;
+    /* ---- Neumorphic / Soft UI design tokens (AutoChain's original dark + gold identity) ---- */
+    --neu-bg: #1F2125;
+    --neu-surface: #1F2125;
+    --neu-surface-alt: #24262B;
+    --neu-surface-sunken: #191A1D;
+    --neu-text: #ECEEF1;
+    --neu-text-secondary: #9AA0AA;
+    --neu-accent: #F2B705;
+    --neu-accent-strong: #FFCE33;
+    --neu-plate-blue: #1F4FD8;
+    --neu-success: #3ECF7A;
+    --neu-danger: #FF5F5F;
+    --neu-warning: #F2B705;
+
+    --neu-shadow-light: rgba(255, 255, 255, 0.06);
+    --neu-shadow-dark: rgba(0, 0, 0, 0.6);
+
+    --neu-radius-sm: 10px;
+    --neu-radius-md: 16px;
+    --neu-radius-lg: 24px;
+    --neu-transition: 200ms ease;
+
+    --shadow-raised-sm: 4px 4px 9px var(--neu-shadow-dark), -4px -4px 9px var(--neu-shadow-light);
+    --shadow-raised-md: 8px 8px 18px var(--neu-shadow-dark), -8px -8px 18px var(--neu-shadow-light);
+    --shadow-raised-lg: 14px 14px 30px var(--neu-shadow-dark), -12px -12px 26px var(--neu-shadow-light);
+    --shadow-inset-sm: inset 3px 3px 7px var(--neu-shadow-dark), inset -3px -3px 7px var(--neu-shadow-light);
+    --shadow-inset-md: inset 6px 6px 14px var(--neu-shadow-dark), inset -6px -6px 14px var(--neu-shadow-light);
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
     margin: 0;
-    background: var(--asphalt);
-    color: var(--text);
+    background: var(--neu-bg);
+    color: var(--neu-text);
     font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
     line-height: 1.5;
   }
   svg.icon { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.15em; }
   .wrap { max-width: 780px; margin: 0 auto; padding: 0 20px 96px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--neu-accent); outline-offset: 2px;
+  }
+
+  .scroll-progress {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--neu-accent), var(--neu-accent-strong));
+    z-index: 2000; transition: width .1s linear;
+  }
 
   /* ---------------- Left sidebar ---------------- */
   .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; width: 232px;
-    background: var(--asphalt-2); border-right: 1px solid var(--line);
+    background: var(--neu-surface); box-shadow: 6px 0 20px rgba(163,177,198,.35);
     display: flex; flex-direction: column; padding: 22px 16px; gap: 4px;
     overflow-y: auto; z-index: 100;
   }
   .sidebar .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; padding: 0 4px; }
   .sidebar .brand .brand-mark {
-    width: 34px; height: 34px; border-radius: 8px; background: rgba(31,79,216,.18); color: var(--plate-blue);
+    width: 36px; height: 36px; border-radius: var(--neu-radius-sm); background: var(--neu-surface);
+    box-shadow: var(--shadow-raised-sm); color: var(--neu-accent);
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
   .sidebar .brand .brand-mark svg.icon { width: 18px; height: 18px; }
-  .sidebar .brand .brand-name { font-weight: 800; font-size: 17px; letter-spacing: -0.01em; }
-  .sidebar nav { display: flex; flex-direction: column; gap: 4px; }
+  .sidebar .brand .brand-name { font-weight: 800; font-size: 17px; letter-spacing: -0.01em; color: var(--neu-text); }
+  .sidebar nav { display: flex; flex-direction: column; gap: 8px; }
   .side-link {
-    display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
-    color: var(--text-dim); text-decoration: none; font-size: 13.5px; font-weight: 600; cursor: pointer;
-    background: none; border: none; text-align: left; width: 100%; margin-top: 0;
+    display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: var(--neu-radius-sm);
+    color: var(--neu-text-secondary); text-decoration: none; font-size: 13.5px; font-weight: 600; cursor: pointer;
+    background: var(--neu-surface); border: none; text-align: left; width: 100%; margin-top: 0;
+    box-shadow: none; transition: box-shadow var(--neu-transition), color var(--neu-transition);
   }
-  .side-link:hover { background: rgba(255,255,255,.04); color: var(--text); filter: none; }
-  .side-link.active { background: rgba(242,183,5,.12); color: var(--hazard); }
+  .side-link:hover { box-shadow: var(--shadow-raised-sm); color: var(--neu-text); filter: none; }
+  .side-link.active { box-shadow: var(--shadow-inset-sm); color: var(--neu-accent); }
   .side-link svg.icon { width: 17px; height: 17px; flex-shrink: 0; }
-  .sidebar .side-stats { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
-  .sidebar .side-stat b { display: block; font-size: 19px; color: var(--hazard); }
-  .sidebar .side-stat span { font-size: 11.5px; color: var(--text-dim); }
+  .sidebar .side-stats { margin-top: auto; padding-top: 18px; border-top: 1px solid rgba(163,177,198,.3); display: flex; flex-direction: column; gap: 12px; }
+  .sidebar .side-stat b { display: block; font-size: 19px; color: var(--neu-accent); }
+  .sidebar .side-stat span { font-size: 11.5px; color: var(--neu-text-secondary); }
 
   .main-content { margin-left: 232px; }
 
   @media (max-width: 880px) {
     .sidebar {
       position: static; width: 100%; flex-direction: row; align-items: center;
-      padding: 10px 14px; border-right: none; border-bottom: 1px solid var(--line);
+      padding: 10px 14px; box-shadow: 0 6px 16px rgba(163,177,198,.3);
       overflow-x: auto; gap: 6px;
     }
     .sidebar .brand { margin-bottom: 0; margin-right: 10px; }
     .sidebar nav { flex-direction: row; }
-    .side-link { white-space: nowrap; padding: 8px 10px; }
+    .side-link { white-space: nowrap; padding: 9px 12px; }
     .sidebar .side-stats { display: none; }
     .main-content { margin-left: 0; }
   }
@@ -78,34 +107,46 @@
     overflow: hidden;
     padding: 56px 20px 64px;
     text-align: center;
-    background:
-      radial-gradient(ellipse 60% 50% at 50% 0%, rgba(31,79,216,.35) 0%, rgba(31,79,216,0) 70%),
-      var(--asphalt);
-    border-bottom: 1px solid var(--line);
+    background: var(--neu-bg);
   }
-  .hero::before {
-    content: "";
-    position: absolute; inset: 0;
-    background-image: repeating-linear-gradient(90deg, transparent 0 78px, rgba(255,255,255,.035) 78px 80px);
-    animation: roadScroll 3.5s linear infinite;
-    pointer-events: none;
+  .hero-glow {
+    position: absolute; width: 340px; height: 340px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(31,79,216,.24), transparent 72%);
+    pointer-events: none; transform: translate(-50%, -50%); opacity: 0;
+    transition: opacity .3s ease; z-index: 0; left: 0; top: 0;
   }
-  @keyframes roadScroll { from { background-position-x: 0; } to { background-position-x: 160px; } }
-  .hero-inner { position: relative; max-width: 780px; margin: 0 auto; }
+  .hero-inner { position: relative; max-width: 780px; margin: 0 auto; z-index: 1; }
+
+  /* live activity ticker */
+  .hero-ticker {
+    margin: 26px auto 0; max-width: 560px; overflow: hidden; position: relative;
+    background: var(--neu-surface); box-shadow: var(--shadow-inset-sm); border-radius: 20px; padding: 8px 0;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+  .hero-ticker-track {
+    display: inline-flex; white-space: nowrap; animation: tickerScroll 22s linear infinite;
+  }
+  .hero-ticker:hover .hero-ticker-track { animation-play-state: paused; }
+  .hero-ticker-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--neu-text-secondary); padding: 0 20px; border-right: 1px solid rgba(163,177,198,.35); }
+  .hero-ticker-item b { color: var(--neu-text); }
+  .hero-ticker-item svg.icon { color: var(--neu-accent); width: 13px; height: 13px; }
+  @keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
   .plate-badge {
     display: inline-flex; align-items: center; gap: 6px;
     font-family: "Courier New", monospace;
     background: #fff; color: #111;
-    border: 3px solid var(--plate-blue);
+    border: 3px solid var(--neu-plate-blue);
     border-radius: 4px;
-    padding: 2px 10px;
+    padding: 3px 12px;
     font-weight: 700;
     letter-spacing: 2px;
     font-size: 13px;
     margin-bottom: 18px;
+    box-shadow: var(--shadow-raised-sm);
   }
-  .hero-title { font-size: 46px; margin: 0; letter-spacing: -0.03em; font-weight: 800; }
-  .hero-tagline { color: var(--text-dim); font-size: 16px; max-width: 520px; margin: 12px auto 0; }
+  .hero-title { font-size: 46px; margin: 0; letter-spacing: -0.03em; font-weight: 800; color: var(--neu-text); }
+  .hero-tagline { color: var(--neu-text-secondary); font-size: 16px; max-width: 520px; margin: 12px auto 0; }
 
   /* 3D flip card: robado -> recuperado */
   .flip-stage { margin: 36px auto 8px; perspective: 900px; width: 220px; height: 140px; }
@@ -116,13 +157,13 @@
   }
   .flip-face {
     position: absolute; inset: 0; backface-visibility: hidden;
-    border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: var(--neu-radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center;
     font-weight: 800; font-size: 15px; letter-spacing: .04em; gap: 8px;
-    box-shadow: 0 18px 40px rgba(0,0,0,.45);
+    background: var(--neu-surface); box-shadow: var(--shadow-raised-md);
   }
   .flip-face svg.icon { width: 34px; height: 34px; stroke-width: 1.6; }
-  .flip-front { background: linear-gradient(145deg,#3a1010,#1a0707); border: 2px solid var(--danger); color: #ff9d9d; }
-  .flip-back { background: linear-gradient(145deg,#0d3a1c,#062310); border: 2px solid var(--ok); color: var(--ok); transform: rotateY(180deg); }
+  .flip-front { color: var(--neu-danger); box-shadow: var(--shadow-raised-md), inset 0 0 0 2px rgba(255,95,95,.35); }
+  .flip-back { color: var(--neu-success); box-shadow: var(--shadow-raised-md), inset 0 0 0 2px rgba(62,207,122,.35); transform: rotateY(180deg); }
   @keyframes flipCard {
     0%, 42%   { transform: rotateY(0deg); }
     50%, 92%  { transform: rotateY(180deg); }
@@ -133,103 +174,220 @@
   .hero-ctas button { margin-top: 0; display: inline-flex; align-items: center; gap: 8px; }
 
   .stat-row { display: flex; gap: 24px; margin: 40px auto 0; flex-wrap: wrap; max-width: 620px; }
-  .stat { background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 140px; }
-  .stat b { display: block; font-size: 26px; color: var(--hazard); }
-  .stat span { color: var(--text-dim); font-size: 13px; }
+  .stat { background: var(--neu-surface); box-shadow: var(--shadow-raised-sm); border-radius: var(--neu-radius-md); padding: 18px 22px; flex: 1; min-width: 140px; }
+  .stat b { display: block; font-size: 26px; color: var(--neu-accent); }
+  .stat span { color: var(--neu-text-secondary); font-size: 13px; }
+
+  .trust-strip { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin: 22px auto 0; }
+  .trust-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--neu-text-secondary); }
+  .trust-item .icon-dot {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--neu-surface); color: var(--neu-accent);
+    box-shadow: var(--shadow-raised-sm);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .trust-item .icon-dot svg.icon { width: 14px; height: 14px; }
+
+  /* ---------------- Sobre nosotros ---------------- */
+  .about-section { max-width: 980px; margin: 64px auto 0; padding: 0 20px; position: relative; }
+  .about-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 36px; align-items: start; }
+  .about-text p { color: var(--neu-text-secondary); font-size: 14.5px; line-height: 1.7; margin: 0 0 14px; }
+  .about-text strong { color: var(--neu-text); }
+  .about-badges { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .about-badge {
+    background: var(--neu-surface); box-shadow: var(--shadow-raised-sm); border-radius: var(--neu-radius-md); padding: 18px;
+    opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .5s ease, box-shadow var(--neu-transition);
+  }
+  .about-badge.visible { opacity: 1; transform: translateY(0); }
+  .about-badge .icon-wrap {
+    width: 40px; height: 40px; border-radius: var(--neu-radius-sm); background: var(--neu-surface);
+    box-shadow: var(--shadow-raised-sm); color: var(--neu-accent);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 10px;
+  }
+  .about-badge .icon-wrap svg.icon { width: 19px; height: 19px; }
+  .about-badge b { display: block; font-size: 13.5px; margin-bottom: 4px; color: var(--neu-text); }
+  .about-badge span { font-size: 12px; color: var(--neu-text-secondary); line-height: 1.4; display: block; }
+  @media (max-width: 720px) { .about-grid { grid-template-columns: 1fr; } }
+
+  /* ---------------- Footer + social ---------------- */
+  .site-footer { text-align: center; margin-top: 48px; padding-top: 28px; border-top: 1px solid rgba(163,177,198,.3); }
+  .footer-social { display: flex; justify-content: center; gap: 14px; margin-bottom: 14px; }
+  .social-link {
+    width: 40px; height: 40px; border-radius: 50%; background: var(--neu-surface); box-shadow: var(--shadow-raised-sm);
+    color: var(--neu-text-secondary); display: flex; align-items: center; justify-content: center; text-decoration: none;
+    transition: color var(--neu-transition), box-shadow var(--neu-transition), transform var(--neu-transition);
+  }
+  .social-link:hover { color: var(--neu-accent); box-shadow: var(--shadow-raised-md); transform: translateY(-2px); }
+  .social-link:active { box-shadow: var(--shadow-inset-sm); transform: translateY(0); }
+  .social-link svg.icon { width: 17px; height: 17px; }
+  .site-footer p { color: var(--neu-text-secondary); font-size: 12px; margin: 0; }
 
   /* ---------------- Cómo funciona ---------------- */
   .steps-section { max-width: 900px; margin: 0 auto; padding: 56px 20px 8px; }
-  .section-title { text-align: center; font-size: 24px; margin: 0 0 6px; font-weight: 800; }
-  .section-sub { text-align: center; color: var(--text-dim); font-size: 14px; margin: 0 0 30px; }
-  .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+  .section-title { text-align: center; font-size: 24px; margin: 0 0 6px; font-weight: 800; color: var(--neu-text); }
+  .section-sub { text-align: center; color: var(--neu-text-secondary); font-size: 14px; margin: 0 0 30px; }
+  .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 18px; }
   .step {
-    background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 12px;
-    padding: 20px 16px; text-align: center;
+    background: var(--neu-surface); box-shadow: var(--shadow-raised-sm); border-radius: var(--neu-radius-md);
+    padding: 22px 18px; text-align: center;
     opacity: 0; transform: translateY(18px) scale(.97);
-    transition: opacity .5s ease, transform .5s ease;
+    transition: opacity .5s ease, transform .5s ease, box-shadow var(--neu-transition);
   }
   .step.visible { opacity: 1; transform: translateY(0) scale(1); }
+  .step:hover { transition: transform .15s ease-out, box-shadow var(--neu-transition); box-shadow: var(--shadow-raised-md); }
   .step .icon-wrap {
-    width: 46px; height: 46px; margin: 0 auto 10px; border-radius: 50%;
-    background: rgba(242,183,5,.12); color: var(--hazard);
+    width: 46px; height: 46px; margin: 0 auto 12px; border-radius: 50%;
+    background: var(--neu-surface); box-shadow: var(--shadow-raised-sm); color: var(--neu-accent);
     display: flex; align-items: center; justify-content: center;
   }
   .step .icon-wrap svg.icon { width: 22px; height: 22px; stroke-width: 1.8; }
-  .step h3 { font-size: 14px; margin: 0 0 6px; }
-  .step p { font-size: 12.5px; color: var(--text-dim); margin: 0; }
+  .step h3 { font-size: 14px; margin: 0 0 6px; color: var(--neu-text); }
+  .step p { font-size: 12.5px; color: var(--neu-text-secondary); margin: 0; }
+
+  /* ---------------- Reward split calculator ---------------- */
+  .calculator-section { max-width: 640px; margin: 56px auto 0; padding: 0 20px; }
+  .calc-box { background: var(--neu-surface); box-shadow: var(--shadow-raised-lg); border-radius: var(--neu-radius-lg); padding: 26px; }
+  .calc-box label { margin-top: 0; color: var(--neu-text-secondary); }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 10px; border-radius: 10px;
+    background: var(--neu-surface); box-shadow: var(--shadow-inset-sm); cursor: pointer; margin: 10px 0 4px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border-radius: 50%; border: none;
+    background: var(--neu-accent); box-shadow: 3px 3px 8px rgba(242,183,5,.4), -2px -2px 6px rgba(255,255,255,.08);
+    cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%; border: none;
+    background: var(--neu-accent); box-shadow: 3px 3px 8px rgba(242,183,5,.4); cursor: pointer;
+  }
+  .calc-amount { text-align: center; font-size: 28px; font-weight: 800; color: var(--neu-accent); margin: 4px 0 20px; }
+  .calc-bar-row { margin-bottom: 18px; }
+  .calc-bar-top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px; }
+  .calc-bar-top .label { display: flex; align-items: center; gap: 8px; color: var(--neu-text-secondary); }
+  .calc-bar-value { font-weight: 700; color: var(--neu-text); }
+  .calc-bar-track { background: var(--neu-surface); box-shadow: var(--shadow-inset-sm); border-radius: 20px; height: 12px; overflow: hidden; }
+  .calc-bar-fill { height: 100%; border-radius: 20px; width: 0%; transition: width .3s ease; }
+  .calc-bar-fill.tier-informacion_util-fill { background: var(--neu-success); }
+  .calc-bar-fill.tier-evidencia_clave-fill { background: #7EA2FF; }
+  .calc-bar-fill.tier-recompensa_total-fill { background: var(--neu-warning); }
+  .tier-recompensa_total { color: var(--neu-warning); }
 
   /* ---------------- App (tabs) ---------------- */
   .app-section { padding-top: 48px; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
-  .tab-btn {
-    background: none; color: var(--text-dim); border: none; border-bottom: 2px solid transparent;
-    border-radius: 0; padding: 10px 4px; margin: 0 14px 0 0; font-size: 14.5px; font-weight: 600; cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .tab-btn:hover { color: var(--text); filter: none; }
-  .tab-btn.active { color: var(--hazard); border-bottom-color: var(--hazard); }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
   .stage {
-    background: var(--asphalt-2);
-    border: 1px solid var(--line);
-    border-left: 3px solid var(--line);
-    border-radius: 10px;
-    padding: 22px 24px;
-    margin-bottom: 18px;
-    transition: border-color .2s;
+    background: var(--neu-surface);
+    box-shadow: var(--shadow-raised-sm);
+    border-left: 4px solid transparent;
+    border-radius: var(--neu-radius-md);
+    padding: 24px 26px;
+    margin-bottom: 20px;
+    transition: border-color var(--neu-transition), box-shadow var(--neu-transition);
   }
-  .stage.active { border-left-color: var(--hazard); }
-  .stage.done { border-left-color: var(--ok); }
-  .stage h2 { font-size: 16px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
-  .stage h2 .n { color: var(--text-dim); font-weight: 400; }
-  .stage p.desc { color: var(--text-dim); font-size: 13.5px; margin: 0 0 14px; }
-  label { display: block; font-size: 13px; color: var(--text-dim); margin: 10px 0 4px; }
+  .stage.active { border-left-color: var(--neu-accent); box-shadow: var(--shadow-raised-md); }
+  .stage.done { border-left-color: var(--neu-success); }
+  .stage h2 { font-size: 16px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; color: var(--neu-text); }
+  .stage h2 .n { color: var(--neu-text-secondary); font-weight: 400; }
+  .stage p.desc { color: var(--neu-text-secondary); font-size: 13.5px; margin: 0 0 14px; }
+  label { display: block; font-size: 13px; color: var(--neu-text-secondary); margin: 10px 0 4px; }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .field-row.three { grid-template-columns: 1fr 1fr 1fr; }
   input[type=text], input[type=number], textarea {
-    width: 100%; background: #101114; border: 1px solid var(--line); color: var(--text);
-    border-radius: 6px; padding: 9px 11px; font-size: 14px; font-family: inherit;
+    width: 100%; background: var(--neu-surface); border: none; color: var(--neu-text);
+    box-shadow: var(--shadow-inset-sm);
+    border-radius: var(--neu-radius-sm); padding: 11px 14px; font-size: 14px; font-family: inherit;
+    transition: box-shadow var(--neu-transition);
+  }
+  input[type=text]:focus, input[type=number]:focus, textarea:focus {
+    box-shadow: var(--shadow-inset-sm), 0 0 0 3px rgba(242,183,5,.25); outline: none;
   }
   textarea { resize: vertical; min-height: 64px; }
-  input[type=file] { font-size: 13px; color: var(--text-dim); }
-  .photo-gallery { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .photo-gallery img {
-    width: 84px; height: 84px; border-radius: 8px; object-fit: cover; border: 1px solid var(--line);
+  input[type=file] { font-size: 13px; color: var(--neu-text-secondary); }
+  input[type=file]::file-selector-button {
+    background: var(--neu-surface); color: var(--neu-text); border: none; border-radius: var(--neu-radius-sm);
+    padding: 9px 14px; margin-right: 10px; box-shadow: var(--shadow-raised-sm); cursor: pointer;
+    transition: box-shadow var(--neu-transition); font-family: inherit; font-size: 13px;
   }
+  input[type=file]::file-selector-button:hover { box-shadow: var(--shadow-raised-md); }
+  .photo-gallery { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .photo-gallery img, .photo-gallery video {
+    width: 110px; height: 110px; border-radius: var(--neu-radius-sm); object-fit: cover; box-shadow: var(--shadow-raised-sm);
+    background: #000;
+  }
+  .photo-gallery .preview-item { position: relative; }
+  .photo-gallery .preview-badge {
+    position: absolute; bottom: 5px; right: 5px; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--neu-accent); color: var(--neu-bg); display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .photo-gallery .preview-badge svg.icon { width: 11px; height: 11px; }
+
+  /* ---------------- Reportar: choice screen ---------------- */
+  .report-choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .choice-card {
+    display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+    background: var(--neu-surface); box-shadow: var(--shadow-raised-md); border-radius: var(--neu-radius-lg);
+    padding: 30px 22px; margin-top: 0; cursor: pointer; color: var(--neu-text);
+    transition: transform var(--neu-transition), box-shadow var(--neu-transition);
+  }
+  .choice-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-raised-lg); filter: none; }
+  .choice-card:active { transform: translateY(1px); box-shadow: var(--shadow-inset-sm); }
+  .choice-icon {
+    width: 56px; height: 56px; border-radius: 50%; background: var(--neu-surface); box-shadow: var(--shadow-raised-sm);
+    color: var(--neu-accent); display: flex; align-items: center; justify-content: center; margin-bottom: 8px;
+  }
+  .choice-icon svg.icon { width: 26px; height: 26px; }
+  .choice-title { font-size: 15.5px; font-weight: 700; }
+  .choice-desc { font-size: 12.5px; color: var(--neu-text-secondary); line-height: 1.5; }
+  @media (max-width: 560px) { .report-choice-grid { grid-template-columns: 1fr; } }
   .vehicle-context {
-    display: none; align-items: center; gap: 12px; background: var(--asphalt-2);
-    border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: -6px 0 18px;
+    display: none; align-items: center; gap: 12px; background: var(--neu-surface);
+    box-shadow: var(--shadow-raised-sm); border-radius: var(--neu-radius-md); padding: 12px 16px; margin: -6px 0 18px;
   }
-  .vehicle-context img { width: 56px; height: 56px; border-radius: 6px; object-fit: cover; border: 1px solid var(--line); }
-  .vehicle-context span { font-size: 13px; color: var(--text-dim); }
-  .vehicle-context b { color: var(--text); }
+  .vehicle-context img { width: 56px; height: 56px; border-radius: var(--neu-radius-sm); object-fit: cover; box-shadow: var(--shadow-raised-sm); }
+  .vehicle-context span { font-size: 13px; color: var(--neu-text-secondary); }
+  .vehicle-context b { color: var(--neu-text); }
   button {
-    background: var(--hazard); color: #17181b; border: none; border-radius: 6px;
-    padding: 10px 18px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 14px;
+    background: var(--neu-accent); color: var(--neu-bg); border: none; border-radius: var(--neu-radius-sm);
+    padding: 12px 22px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 14px;
+    box-shadow: 6px 6px 14px rgba(0,0,0,.4), -4px -4px 10px rgba(255,255,255,.05);
+    transition: transform var(--neu-transition), box-shadow var(--neu-transition), filter var(--neu-transition);
   }
-  button:hover { filter: brightness(1.08); }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  button.secondary { background: transparent; color: var(--hazard); border: 1px solid var(--hazard); padding: 9px 17px; font-size: 14px; }
-  button.secondary.small { padding: 9px 16px; font-size: 14px; margin-top: auto; align-self: flex-start; }
-  button.ghost { background: var(--asphalt-2); color: var(--text); border: 1px solid var(--line); }
-  .result { margin-top: 14px; font-size: 13.5px; padding: 10px 12px; border-radius: 6px; background: #101114; border: 1px solid var(--line); display: none; }
-  .result.success { border-color: var(--ok); background: rgba(62,207,122,.1); }
-  .result.success .headline { color: var(--ok); font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-  .result .next-step { color: var(--text-dim); display: block; margin-top: 2px; }
-  .tier-pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-left: 6px; }
-  .tier-evidencia_clave { background: rgba(31,79,216,.2); color: #7ea2ff; }
-  .tier-informacion_util { background: rgba(62,207,122,.18); color: var(--ok); }
-  .tier-sin_coincidencia { background: rgba(255,255,255,.08); color: var(--text-dim); }
-  .status-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; }
-  .status-open { background: rgba(242,183,5,.18); color: var(--hazard); }
-  .status-closed { background: rgba(62,207,122,.18); color: var(--ok); }
+  button:hover { transform: translateY(-1px); box-shadow: 8px 8px 18px rgba(0,0,0,.45), -6px -6px 14px rgba(255,255,255,.07); filter: brightness(1.08); }
+  button:active { transform: translateY(1px); box-shadow: inset 4px 4px 9px rgba(120,85,0,.4), inset -3px -3px 7px rgba(255,255,255,.08); }
+  button:disabled { opacity: .5; cursor: not-allowed; transform: none; filter: none; box-shadow: var(--shadow-raised-sm); }
+  button.secondary {
+    background: var(--neu-surface); color: var(--neu-accent); border: none; box-shadow: var(--shadow-raised-sm);
+  }
+  button.secondary:hover { box-shadow: var(--shadow-raised-md); transform: translateY(-1px); filter: none; }
+  button.secondary:active { box-shadow: var(--shadow-inset-sm); transform: translateY(1px); }
+  button.secondary.small { padding: 10px 16px; font-size: 14px; margin-top: auto; align-self: flex-start; }
+  button.ghost { background: var(--neu-surface); color: var(--neu-text); box-shadow: var(--shadow-raised-sm); }
+  button.ghost:hover { box-shadow: var(--shadow-raised-md); }
+  .result { margin-top: 14px; font-size: 13.5px; padding: 12px 14px; border-radius: var(--neu-radius-sm); background: var(--neu-surface); box-shadow: var(--shadow-inset-sm); border-left: 4px solid transparent; display: none; }
+  .result.success { border-left-color: var(--neu-success); }
+  .result.success .headline { color: var(--neu-success); font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .result .next-step { color: var(--neu-text-secondary); display: block; margin-top: 2px; }
+  .tier-pill {
+    display: inline-block; padding: 4px 11px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-left: 6px;
+    background: var(--neu-surface); box-shadow: var(--shadow-inset-sm);
+  }
+  .tier-evidencia_clave { color: #7EA2FF; }
+  .tier-informacion_util { color: var(--neu-success); }
+  .tier-sin_coincidencia { color: var(--neu-text-secondary); }
+  .status-pill {
+    display: inline-block; padding: 5px 13px; border-radius: 20px; font-size: 13px; font-weight: 700;
+    background: var(--neu-surface); box-shadow: var(--shadow-inset-sm);
+  }
+  .status-open { color: var(--neu-warning); }
+  .status-closed { color: var(--neu-success); }
 
   .location-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
   .location-row button { margin-top: 0; }
-  .location-status { font-size: 12.5px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 5px; }
-  .location-status.set { color: var(--ok); }
+  .location-status { font-size: 12.5px; color: var(--neu-text-secondary); display: inline-flex; align-items: center; gap: 5px; }
+  .location-status.set { color: var(--neu-success); }
 
   .lookup-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 24px; }
   .lookup-row > div { flex: 1; }
@@ -237,85 +395,101 @@
 
   /* ---------------- Marketplace-style case cards ---------------- */
   .case-card {
-    display: flex; gap: 20px; background: var(--asphalt-2); border: 1px solid var(--line);
-    border-radius: 12px; padding: 22px; margin-bottom: 18px;
+    display: flex; gap: 20px; background: var(--neu-surface); box-shadow: var(--shadow-raised-md);
+    border-radius: var(--neu-radius-md); padding: 22px; margin-bottom: 20px;
     opacity: 0; transform: translateY(10px); animation: cardIn .4s ease forwards;
   }
   @keyframes cardIn { to { opacity: 1; transform: translateY(0); } }
   .case-card .gallery { position: relative; width: 160px; height: 160px; flex-shrink: 0; }
-  .case-card .gallery img { width: 160px; height: 160px; border-radius: 10px; object-fit: cover; border: 1px solid var(--line); display: block; }
+  .case-card .gallery img { width: 160px; height: 160px; border-radius: var(--neu-radius-sm); object-fit: cover; box-shadow: var(--shadow-raised-sm); display: block; }
   .case-card .gallery .nav {
     position: absolute; top: 50%; transform: translateY(-50%);
-    width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff;
+    width: 30px; height: 30px; border-radius: 50%; background: rgba(45,49,66,.55); color: #fff;
     display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0; font-size: 0;
+    box-shadow: none;
   }
   .case-card .gallery .nav svg.icon { width: 16px; height: 16px; }
   .case-card .gallery .nav.prev { left: 6px; }
   .case-card .gallery .nav.next { right: 6px; }
   .case-card .gallery .dots { position: absolute; bottom: 6px; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; }
-  .case-card .gallery .dots span { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.5); }
+  .case-card .gallery .dots span { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.6); }
   .case-card .gallery .dots span.active { background: #fff; }
   .case-card .body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .case-card .top-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .case-card .plate-label { font-weight: 700; font-size: 20px; }
-  .case-card .specs { color: var(--text-dim); font-size: 14.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
-  .case-card .meta { color: var(--text-dim); font-size: 15px; }
+  .case-card .plate-label { font-weight: 700; font-size: 20px; color: var(--neu-text); }
+  .case-card .specs { color: var(--neu-text-secondary); font-size: 14.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .case-card .meta { color: var(--neu-text-secondary); font-size: 15px; }
 
-  .tips-list { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
-  .tip-row { display: flex; flex-direction: column; gap: 2px; font-size: 13px; padding: 7px 0; color: var(--text-dim); border-bottom: 1px dashed var(--line); }
+  .tips-list { margin-top: 14px; border-top: 1px solid rgba(163,177,198,.3); padding-top: 12px; }
+  .tip-row { display: flex; flex-direction: column; gap: 2px; font-size: 13px; padding: 9px 0; color: var(--neu-text-secondary); border-bottom: 1px dashed rgba(163,177,198,.4); }
   .tip-row:last-of-type { border-bottom: none; }
-  .tip-row label { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: var(--text); cursor: pointer; }
+  .tip-row label { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: var(--neu-text); cursor: pointer; }
   .tip-row .wallet { font-family: "Courier New", monospace; }
-  .tip-row .tip-location { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 5px; margin-left: 24px; }
-  .tip-map-wrapper { position: relative; width: 220px; margin: 6px 0 2px 24px; cursor: pointer; }
-  .tip-map { width: 220px; height: 140px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; background: #101114; }
+  .tip-row .tip-location { font-size: 12px; color: var(--neu-text-secondary); display: flex; align-items: center; gap: 5px; margin-left: 24px; }
+  .tip-map-wrapper { position: relative; width: 220px; margin: 8px 0 2px 24px; cursor: pointer; }
+  .tip-map { width: 220px; height: 140px; border-radius: var(--neu-radius-sm); box-shadow: var(--shadow-inset-sm); overflow: hidden; background: var(--neu-surface); }
   .tip-map.missing { display: none; }
   .tip-map-wrapper:has(.tip-map.missing) { display: none; }
   .tip-map-expand-hint {
-    position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 6px;
-    background: rgba(0,0,0,.6); color: #fff; display: flex; align-items: center; justify-content: center;
+    position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: var(--neu-radius-sm);
+    background: var(--neu-accent); color: #fff; display: flex; align-items: center; justify-content: center;
     pointer-events: none; opacity: 0; transition: opacity .15s ease;
   }
   .tip-map-wrapper:hover .tip-map-expand-hint { opacity: 1; }
   .tip-map-expand-hint svg.icon { width: 14px; height: 14px; }
 
   .map-modal {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75);
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65);
     z-index: 1000; align-items: center; justify-content: center; padding: 24px;
   }
   .map-modal.open { display: flex; }
   .map-modal-content {
     position: relative; width: min(90vw, 900px); height: min(80vh, 600px);
-    background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    background: var(--neu-surface); box-shadow: var(--shadow-raised-lg); border-radius: var(--neu-radius-lg); overflow: hidden;
   }
   .map-modal-map { width: 100%; height: 100%; }
   .map-modal-close {
     position: absolute; top: 10px; right: 10px; z-index: 10; width: 36px; height: 36px;
-    border-radius: 8px; background: rgba(0,0,0,.6); color: #fff; border: none;
+    border-radius: 50%; background: var(--neu-accent); color: #fff; border: none;
+    box-shadow: var(--shadow-raised-sm);
     display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0;
+    transition: box-shadow var(--neu-transition), transform var(--neu-transition);
   }
+  .map-modal-close:hover { box-shadow: var(--shadow-raised-md); }
+  .map-modal-close:active { transform: translateY(1px); }
   .map-modal-close svg.icon { width: 18px; height: 18px; }
 
-  .case-card .theft-info { font-size: 13px; color: var(--text-dim); margin: 4px 0; display: flex; gap: 6px; }
-  .case-card .theft-info svg.icon { flex-shrink: 0; margin-top: 2px; }
-  .case-card .description { font-size: 12.5px; color: var(--text-dim); margin: 4px 0; font-style: italic; }
-  .case-card .reported-at { font-size: 11.5px; color: var(--text-dim); margin-top: auto; padding-top: 8px; }
+  .case-card .theft-info { font-size: 13px; color: var(--neu-text-secondary); margin: 4px 0; display: flex; gap: 6px; }
+  .case-card .theft-info svg.icon { flex-shrink: 0; margin-top: 2px; color: var(--neu-accent); }
+  .case-card .description { font-size: 12.5px; color: var(--neu-text-secondary); margin: 4px 0; font-style: italic; }
+  .case-card .reported-at { font-size: 11.5px; color: var(--neu-text-secondary); margin-top: auto; padding-top: 8px; }
 
   .activity-feed { margin-bottom: 24px; }
   .activity-item {
-    display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--asphalt-2);
-    border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; font-size: 13px;
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--neu-surface);
+    box-shadow: var(--shadow-raised-sm); border-radius: var(--neu-radius-sm); margin-bottom: 10px; font-size: 13px;
   }
-  .activity-item .activity-icon { color: var(--hazard); flex-shrink: 0; }
-  .activity-item .activity-text { flex: 1; color: var(--text); }
-  .activity-item .activity-text b { color: var(--text); }
-  .activity-item .activity-time { color: var(--text-dim); font-size: 12px; white-space: nowrap; }
-  .empty-msg { color: var(--text-dim); font-size: 13.5px; padding: 8px 0; }
+  .activity-item .activity-icon { color: var(--neu-accent); flex-shrink: 0; }
+  .activity-item .activity-text { flex: 1; color: var(--neu-text); }
+  .activity-item .activity-text b { color: var(--neu-text); }
+  .activity-item .activity-time { color: var(--neu-text-secondary); font-size: 12px; white-space: nowrap; }
+  .empty-msg { color: var(--neu-text-secondary); font-size: 13.5px; padding: 8px 0; }
 
-  footer { color: var(--text-dim); font-size: 12px; text-align: center; margin-top: 40px; }
+  /* ---------------- Safety / police guidance box ---------------- */
+  .safety-box {
+    background: var(--neu-surface); box-shadow: var(--shadow-raised-sm); border-radius: var(--neu-radius-md);
+    border-left: 4px solid var(--neu-warning); padding: 18px 20px; margin-bottom: 22px;
+  }
+  .safety-box .safety-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14.5px; margin-bottom: 10px; color: var(--neu-text); }
+  .safety-box .safety-title svg.icon { color: var(--neu-warning); width: 18px; height: 18px; }
+  .safety-box ol, .safety-box ul { margin: 0; padding-left: 20px; font-size: 13px; color: var(--neu-text-secondary); line-height: 1.75; }
+  .safety-box li b { color: var(--neu-text); }
+  .safety-box .safety-note { font-size: 11.5px; color: var(--neu-text-secondary); margin-top: 12px; font-style: italic; }
 </style>
 </head>
 <body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
 
 <aside class="sidebar">
   <div class="brand">
@@ -323,22 +497,29 @@
     <span class="brand-name">AutoChain</span>
   </div>
   <nav>
+    <button class="side-link" id="navlink-home" onclick="scrollToSection('heroSection')"></button>
     <button class="side-link active" id="navtab-report" onclick="goToApp('report')"></button>
     <button class="side-link" id="navtab-mine" onclick="goToApp('mine')"></button>
     <button class="side-link" id="navtab-public" onclick="goToApp('public')"></button>
+    <button class="side-link" id="navlink-about" onclick="scrollToSection('about')"></button>
   </nav>
   <div class="side-stats">
-    <div class="side-stat"><b>3,500</b><span>denuncias/año en Bolivia</span></div>
-    <div class="side-stat"><b>64%</b><span>nunca se localizan</span></div>
+    <div class="side-stat"><b class="count-up" data-target="3500">0</b><span>denuncias/año en Bolivia</span></div>
+    <div class="side-stat"><b class="count-up" data-target="64" data-suffix="%">0%</b><span>nunca se localizan</span></div>
   </div>
 </aside>
 
 <div class="main-content">
-<div class="hero">
+<div class="hero" id="heroSection">
+  <div class="hero-glow" id="heroGlow"></div>
   <div class="hero-inner">
     <div class="plate-badge">HSK · 2026</div>
     <h1 class="hero-title">AutoChain</h1>
     <p class="hero-tagline">La red híbrida de colaboración ciudadana + IA + blockchain que recupera vehículos robados en Bolivia — recompensas en stablecoin sobre HSK Chain.</p>
+
+    <div class="hero-ticker" id="heroTicker">
+      <div class="hero-ticker-track" id="heroTickerTrack"></div>
+    </div>
 
     <div class="flip-stage" id="flipStage">
       <div class="flip-tilt" id="flipTilt">
@@ -356,8 +537,14 @@
     </div>
 
     <div class="stat-row">
-      <div class="stat"><b>3,500</b><span>denuncias de robo vehicular / año en Bolivia</span></div>
-      <div class="stat"><b>64%</b><span>de los vehículos robados nunca se localizan</span></div>
+      <div class="stat"><b class="count-up" data-target="3500">0</b><span>denuncias de robo vehicular / año en Bolivia</span></div>
+      <div class="stat"><b class="count-up" data-target="64" data-suffix="%">0%</b><span>de los vehículos robados nunca se localizan</span></div>
+    </div>
+
+    <div class="trust-strip">
+      <div class="trust-item"><span class="icon-dot" id="trust-icon-1"></span>Pagos on-chain verificables</div>
+      <div class="trust-item"><span class="icon-dot" id="trust-icon-2"></span>Cualquier marca o modelo</div>
+      <div class="trust-item"><span class="icon-dot" id="trust-icon-3"></span>Red de vigilancia ciudadana</div>
     </div>
   </div>
 </div>
@@ -374,9 +561,82 @@
   </div>
 </section>
 
+<section class="calculator-section">
+  <div class="section-title">¿Cómo se reparte la recompensa?</div>
+  <p class="section-sub">Mueve el control y mira cómo el contrato divide el pago por nivel de evidencia.</p>
+  <div class="calc-box">
+    <label>Monto total de recompensa (stablecoin)</label>
+    <input type="range" id="calcSlider" min="20" max="1000" step="10" value="200" oninput="updateCalculator()" />
+    <div class="calc-amount" id="calcAmountLabel">200 stablecoin</div>
+
+    <div class="calc-bar-row">
+      <div class="calc-bar-top">
+        <span class="label"><span class="tier-pill tier-informacion_util">Información útil · 10%</span></span>
+        <span class="calc-bar-value" id="calcVal1">20</span>
+      </div>
+      <div class="calc-bar-track"><div class="calc-bar-fill tier-informacion_util-fill" id="calcBar1"></div></div>
+    </div>
+
+    <div class="calc-bar-row">
+      <div class="calc-bar-top">
+        <span class="label"><span class="tier-pill tier-evidencia_clave">Evidencia clave · 30%</span></span>
+        <span class="calc-bar-value" id="calcVal2">60</span>
+      </div>
+      <div class="calc-bar-track"><div class="calc-bar-fill tier-evidencia_clave-fill" id="calcBar2"></div></div>
+    </div>
+
+    <div class="calc-bar-row">
+      <div class="calc-bar-top">
+        <span class="label"><span class="tier-pill tier-recompensa_total">Recuperación efectiva · 60%</span></span>
+        <span class="calc-bar-value" id="calcVal3">120</span>
+      </div>
+      <div class="calc-bar-track"><div class="calc-bar-fill tier-recompensa_total-fill" id="calcBar3"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="about-section" id="about">
+  <div class="section-title">Sobre nosotros</div>
+  <p class="section-sub">Tecnología ciudadana al servicio de la seguridad vial.</p>
+  <div class="about-grid">
+    <div class="about-text">
+      <p>En Bolivia se registran <strong>~3,500 denuncias de robo vehicular al año</strong>, y el <strong>64% de esos vehículos nunca se localiza</strong>. Detrás de cada placa hay una familia, un sustento de trabajo, un auto que dejó de ser solo metal para convertirse en un problema sin resolver.</p>
+      <p>AutoChain nace para cambiar eso: convertimos la búsqueda de un vehículo robado en un esfuerzo colectivo, donde cualquier persona —un vecino, un chofer, un comerciante— puede aportar una pista real y recibir una recompensa justa, verificable y automática, sin depender de intermediarios ni de la buena voluntad de nadie.</p>
+      <p>Construido para el <strong>Buildathon Ethereum Bolivia 2026 — HSK Chain Track</strong>, como una prueba de que la colaboración ciudadana, la inteligencia artificial y los pagos on-chain pueden trabajar juntos por la seguridad de nuestras calles.</p>
+    </div>
+    <div class="about-badges">
+      <div class="about-badge"><div class="icon-wrap" id="about-icon-1"></div><b>Transparencia</b><span>Cada pago queda registrado on-chain, verificable por cualquiera.</span></div>
+      <div class="about-badge"><div class="icon-wrap" id="about-icon-2"></div><b>Comunidad</b><span>Cualquier persona puede colaborar y ser recompensada de forma justa.</span></div>
+      <div class="about-badge"><div class="icon-wrap" id="about-icon-3"></div><b>Seguridad ciudadana</b><span>Una respuesta tecnológica real a un problema que afecta a miles cada año.</span></div>
+      <div class="about-badge"><div class="icon-wrap" id="about-icon-4"></div><b>Recuperación real</b><span>De la denuncia a las llaves en tu mano, con evidencia validada por IA.</span></div>
+    </div>
+  </div>
+</section>
+
 <div class="wrap app-section" id="app-section">
   <!-- ============ TAB: REPORTAR ============ -->
   <div class="tab-panel active" id="tab-report">
+
+    <!-- Entry choice: pick what you want to do before any form appears -->
+    <div class="report-choice" id="reportChoice">
+      <div class="section-title" style="text-align:left; margin-bottom:6px;">¿Qué necesitas hacer?</div>
+      <p class="desc" style="margin-bottom:18px;">Elige una opción para continuar.</p>
+      <div class="report-choice-grid">
+        <button type="button" class="choice-card" onclick="startFlow('register')" id="btn-choice-register">
+          <span class="choice-icon" id="choice-icon-register"></span>
+          <span class="choice-title">Registrar tu auto</span>
+          <span class="choice-desc">Guarda los datos y fotos de tu vehículo, listo por si algún día lo necesitas.</span>
+        </button>
+        <button type="button" class="choice-card" onclick="startFlow('theft')" id="btn-choice-theft">
+          <span class="choice-icon" id="choice-icon-theft"></span>
+          <span class="choice-title">Reportar como robado</span>
+          <span class="choice-desc">Registra el vehículo (si aún no lo hiciste) y abre un caso con recompensa.</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="reportFlow" style="display:none;">
+    <button type="button" class="secondary small" onclick="backToChoice()" id="btn-back-choice" style="margin-bottom:18px;"></button>
 
     <!-- STAGE 1: Reporta -->
     <div class="stage active" id="stage-register">
@@ -418,8 +678,8 @@
       <label>Características adicionales (opcional: rayones, calcomanías, modificaciones, etc.)</label>
       <textarea id="description" placeholder="Ej: rin de aleación, calcomanía de rayas en el capó, espejo derecho roto…"></textarea>
 
-      <label>Fotos de referencia del vehículo (puedes elegir varias: frontal, lateral, placa…)</label>
-      <input type="file" id="referencePhotos" accept="image/*" multiple onchange="previewFiles(this, 'previewReferenceGallery')" />
+      <label>Fotos o videos de referencia del vehículo (puedes elegir varios: frontal, lateral, placa…)</label>
+      <input type="file" id="referencePhotos" accept="image/*,video/*" multiple onchange="previewFiles(this, 'previewReferenceGallery')" />
       <div class="photo-gallery" id="previewReferenceGallery"></div>
 
       <label>Documento de compra-venta (para validar que el vehículo es tuyo)</label>
@@ -457,8 +717,8 @@
       <div class="result" id="tip-target-info" style="display:none;"></div>
       <label>Wallet del colaborador (HSK Chain)</label>
       <input type="text" id="collaboratorWallet" placeholder="0xabc..." />
-      <label>Fotos de la pista (puedes subir varias)</label>
-      <input type="file" id="tipPhoto" accept="image/*" multiple onchange="previewFiles(this, 'previewTipGallery')" />
+      <label>Fotos o videos de la pista (puedes subir varios)</label>
+      <input type="file" id="tipPhoto" accept="image/*,video/*" multiple onchange="previewFiles(this, 'previewTipGallery')" />
       <div class="photo-gallery" id="previewTipGallery"></div>
 
       <label>Ubicación</label>
@@ -485,10 +745,22 @@
       <p class="desc">Las recompensas de todas las pistas pendientes se liberan on-chain reci&eacute;n cuando el due&ntilde;o marca el veh&iacute;culo como recuperado, desde la pesta&ntilde;a "Mis denuncias".</p>
       <div class="result" id="result-reward" style="display:block;">Sin pagos aún.</div>
     </div>
+    </div><!-- /reportFlow -->
   </div>
 
   <!-- ============ TAB: MIS DENUNCIAS ============ -->
   <div class="tab-panel" id="tab-mine">
+    <div class="safety-box">
+      <div class="safety-title" id="safety-title-mine">Qué hacer además de AutoChain (recomendado en Bolivia)</div>
+      <ol>
+        <li>Denuncia el robo cuanto antes en la <b>FELCC</b> (Fuerza Especial de Lucha Contra el Crimen) más cercana, llevando tu cédula de identidad y la tarjeta de propiedad / RUAT del vehículo. Pide el <b>extracto de denuncia</b>, lo vas a necesitar para otros trámites.</li>
+        <li>Registra también el caso en <b>DIPROVE</b> (Dirección de Prevención de Robo de Vehículos), la unidad especializada en vehículos robados en Bolivia.</li>
+        <li>Línea de emergencia policial: <b>110</b> (a nivel nacional). En algunas ciudades también está disponible el <b>911</b>.</li>
+        <li>Si una pista en AutoChain te da una ubicación, <b>no vayas solo/a ni confrontes a nadie</b>: comparte la evidencia (fotos, mapa) con la Policía y deja que ellos actúen.</li>
+      </ol>
+      <div class="safety-note">Los números y procedimientos pueden variar según la ciudad; confirma la información vigente con la Policía Boliviana. AutoChain complementa la denuncia oficial, no la reemplaza.</div>
+    </div>
+
     <div class="lookup-row">
       <div>
         <label>Tu wallet</label>
@@ -503,6 +775,15 @@
   <div class="tab-panel" id="tab-public">
     <p class="desc" style="margin-bottom:16px;">Todos los veh&iacute;culos reportados como robados en AutoChain. Si reconoces alguno, sube una pista con foto y ubicaci&oacute;n.</p>
 
+    <div class="safety-box">
+      <div class="safety-title" id="safety-title-public">Antes de subir una pista: tu seguridad primero</div>
+      <ul>
+        <li><b>No te acerques</b> al vehículo ni confrontes a nadie.</li>
+        <li>Toma la foto o el dato desde una distancia segura.</li>
+        <li>Si ves algo sospechoso en el momento, llama primero a la Policía (<b>110</b>) y después sube tu pista aquí.</li>
+      </ul>
+    </div>
+
     <div class="section-title" style="text-align:left; font-size:16px; margin-bottom:10px;">Últimos reportes de la comunidad</div>
     <div class="activity-feed" id="activityFeed"></div>
 
@@ -510,7 +791,15 @@
     <div id="publicList"></div>
   </div>
 
-  <footer>AutoChain · HSK Chain Track · Buildathon Ethereum Bolivia 2026</footer>
+  <footer class="site-footer">
+    <div class="footer-social">
+      <a class="social-link" id="social-github" href="https://github.com/C4BALLERO/autochain" target="_blank" rel="noopener" title="GitHub"></a>
+      <a class="social-link" id="social-x" href="#" title="X / Twitter (próximamente)"></a>
+      <a class="social-link" id="social-instagram" href="#" title="Instagram (próximamente)"></a>
+      <a class="social-link" id="social-telegram" href="#" title="Telegram (próximamente)"></a>
+    </div>
+    <p>AutoChain · HSK Chain Track · Buildathon Ethereum Bolivia 2026</p>
+  </footer>
 </div>
 </div>
 
@@ -539,6 +828,16 @@
     chevronRight: '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',
     maximize: '<svg class="icon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>',
     x: '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    shieldCheck: '<svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>',
+    badge: '<svg class="icon" viewBox="0 0 24 24"><path d="m12 2 2.6 4.7 5.3.9-3.8 3.8.9 5.3L12 14.4l-4.9 2.3.9-5.3-3.8-3.8 5.3-.9Z"/></svg>',
+    siren: '<svg class="icon" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 1 4 4v8H8v-8a4 4 0 0 1 4-4Z"/><path d="M4 20h16"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="5" y1="9" x2="7" y2="10.5"/><line x1="19" y1="9" x2="17" y2="10.5"/></svg>',
+    key: '<svg class="icon" viewBox="0 0 24 24"><circle cx="7" cy="15" r="4"/><path d="m10.3 11.7 8.4-8.4M16 6l2.3 2.3M19 3l2 2"/></svg>',
+    github: '<svg class="icon" viewBox="0 0 24 24"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>',
+    instagram: '<svg class="icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>',
+    telegram: '<svg class="icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+    home: '<svg class="icon" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>',
+    info: '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="11"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+    video: '<svg class="icon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>',
   };
 
   document.getElementById("icon-alert").innerHTML = ICONS.alert + "<span>ROBADO</span>";
@@ -553,6 +852,24 @@
   document.getElementById("step-icon-5").innerHTML = ICONS.link;
   document.getElementById("brand-mark").innerHTML = ICONS.link;
   document.getElementById("mapModalClose").innerHTML = ICONS.x;
+  document.getElementById("trust-icon-1").innerHTML = ICONS.shieldCheck;
+  document.getElementById("trust-icon-2").innerHTML = ICONS.car;
+  document.getElementById("trust-icon-3").innerHTML = ICONS.users;
+  document.getElementById("about-icon-1").innerHTML = ICONS.shieldCheck;
+  document.getElementById("about-icon-2").innerHTML = ICONS.users;
+  document.getElementById("about-icon-3").innerHTML = ICONS.badge;
+  document.getElementById("about-icon-4").innerHTML = ICONS.key;
+  document.getElementById("safety-title-mine").innerHTML = ICONS.siren + " Qué hacer además de AutoChain (recomendado en Bolivia)";
+  document.getElementById("safety-title-public").innerHTML = ICONS.siren + " Antes de subir una pista: tu seguridad primero";
+  document.getElementById("navlink-home").innerHTML = ICONS.home + " Home";
+  document.getElementById("navlink-about").innerHTML = ICONS.info + " Sobre nosotros";
+  document.getElementById("choice-icon-register").innerHTML = ICONS.car;
+  document.getElementById("choice-icon-theft").innerHTML = ICONS.alert;
+  document.getElementById("btn-back-choice").innerHTML = ICONS.chevronLeft + " Elegir otra opción";
+  document.getElementById("social-github").innerHTML = ICONS.github;
+  document.getElementById("social-x").innerHTML = ICONS.x;
+  document.getElementById("social-instagram").innerHTML = ICONS.instagram;
+  document.getElementById("social-telegram").innerHTML = ICONS.telegram;
   document.getElementById("navtab-report").innerHTML = ICONS.clipboard + " Reportar";
   document.getElementById("navtab-mine").innerHTML = ICONS.list + " Mis denuncias";
   document.getElementById("navtab-public").innerHTML = ICONS.car + " Autos perdidos reportados";
@@ -585,14 +902,35 @@
     document.getElementById("app-section").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function scrollToSection(id) {
+    document.getElementById(id).scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // Local preview for one or more selected files, images and videos alike —
+  // nothing is uploaded yet, just object URLs rendered client-side.
   function previewFiles(input, galleryId) {
     const gallery = document.getElementById(galleryId);
     gallery.innerHTML = "";
     Array.from(input.files || []).forEach((file) => {
-      const img = document.createElement("img");
-      img.src = URL.createObjectURL(file);
-      img.alt = "Vista previa";
-      gallery.appendChild(img);
+      const item = document.createElement("div");
+      item.className = "preview-item";
+      if (file.type.startsWith("video/")) {
+        const video = document.createElement("video");
+        video.src = URL.createObjectURL(file);
+        video.muted = true;
+        video.controls = true;
+        item.appendChild(video);
+        const badge = document.createElement("span");
+        badge.className = "preview-badge";
+        badge.innerHTML = ICONS.video;
+        item.appendChild(badge);
+      } else {
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        img.alt = "Vista previa";
+        item.appendChild(img);
+      }
+      gallery.appendChild(item);
     });
   }
 
@@ -668,7 +1006,7 @@
   // Esri's "World Dark Gray" basemap is free for app usage without an API key
   // (unlike tile.openstreetmap.org, which blocks app/bulk traffic under its
   // usage policy, and CARTO's basemaps, which now require a key). Two layers:
-  // the dark canvas plus a labels/streets overlay on top.
+  // the dark canvas plus a labels/streets overlay — matches AutoChain's dark theme.
   function addBaseTiles(map) {
     const attribution = "Esri, HERE, Garmin, © OpenStreetMap contributors";
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
@@ -714,7 +1052,7 @@
       });
     }
 
-    const steps = document.querySelectorAll(".step");
+    const steps = document.querySelectorAll(".step, .about-badge");
     if ("IntersectionObserver" in window) {
       const io = new IntersectionObserver(
         (entries) => {
@@ -731,9 +1069,148 @@
     } else {
       steps.forEach((s) => s.classList.add("visible"));
     }
+
+    // Subtle 3D tilt on each step card, independent of the entrance animation above.
+    if (matchMedia("(hover: hover)").matches) {
+      steps.forEach((card) => {
+        card.addEventListener("mousemove", (e) => {
+          const r = card.getBoundingClientRect();
+          const px = (e.clientX - r.left) / r.width - 0.5;
+          const py = (e.clientY - r.top) / r.height - 0.5;
+          card.style.transform = `perspective(700px) rotateY(${px * 10}deg) rotateX(${-py * 10}deg) scale(1.03)`;
+        });
+        card.addEventListener("mouseleave", () => {
+          card.style.transform = "";
+        });
+      });
+    }
+
+    // Cursor-follow glow in the hero background.
+    const hero = document.getElementById("heroSection");
+    const glow = document.getElementById("heroGlow");
+    if (hero && glow && matchMedia("(hover: hover)").matches) {
+      hero.addEventListener("mousemove", (e) => {
+        const r = hero.getBoundingClientRect();
+        glow.style.left = `${e.clientX - r.left}px`;
+        glow.style.top = `${e.clientY - r.top}px`;
+        glow.style.opacity = "1";
+      });
+      hero.addEventListener("mouseleave", () => { glow.style.opacity = "0"; });
+    }
+  })();
+
+  // ---------- Animated count-up stats ----------
+
+  (function initCountUp() {
+    const els = document.querySelectorAll(".count-up");
+    const animate = (el) => {
+      const target = Number(el.dataset.target);
+      const suffix = el.dataset.suffix || "";
+      const duration = 1200;
+      const start = performance.now();
+      function tick(now) {
+        const progress = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const value = Math.round(target * eased);
+        el.textContent = value.toLocaleString("es-BO") + suffix;
+        if (progress < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    };
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            animate(entry.target);
+            io.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.4 });
+      els.forEach((el) => io.observe(el));
+    } else {
+      els.forEach((el) => { el.textContent = Number(el.dataset.target).toLocaleString("es-BO") + (el.dataset.suffix || ""); });
+    }
+  })();
+
+  // ---------- Reward split calculator ----------
+
+  function updateCalculator() {
+    const total = Number(document.getElementById("calcSlider").value);
+    document.getElementById("calcAmountLabel").innerText = `${total} stablecoin`;
+
+    const splits = [
+      { pct: 0.10, valId: "calcVal1", barId: "calcBar1" },
+      { pct: 0.30, valId: "calcVal2", barId: "calcBar2" },
+      { pct: 0.60, valId: "calcVal3", barId: "calcBar3" },
+    ];
+    splits.forEach(({ pct, valId, barId }) => {
+      const amount = Math.round(total * pct);
+      document.getElementById(valId).innerText = amount;
+      document.getElementById(barId).style.width = `${pct * 100}%`;
+    });
+  }
+  updateCalculator();
+
+  // ---------- Hero live activity ticker ----------
+
+  async function loadHeroTicker() {
+    const ticker = document.getElementById("heroTicker");
+    const track = document.getElementById("heroTickerTrack");
+    try {
+      const res = await fetch(`${API_BASE}/tips/recent?limit=6`);
+      const recentTips = await res.json();
+      if (!recentTips.length) {
+        ticker.style.display = "none";
+        return;
+      }
+      const itemsHtml = recentTips.map((t) => `
+        <span class="hero-ticker-item">${ICONS.users} <b>${t.plate}</b> ${t.brand} ${t.model} — pista ${t.tier.replace('_',' ')} · ${timeAgo(t.created_at)}</span>
+      `).join("");
+      track.innerHTML = itemsHtml + itemsHtml; // duplicated for a seamless scroll loop
+    } catch (e) {
+      ticker.style.display = "none";
+    }
+  }
+  loadHeroTicker();
+
+  // ---------- Scroll progress bar ----------
+
+  (function initScrollProgress() {
+    const bar = document.getElementById("scrollProgress");
+    function update() {
+      const scrollTop = window.scrollY;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      bar.style.width = max > 0 ? `${(scrollTop / max) * 100}%` : "0%";
+    }
+    document.addEventListener("scroll", update, { passive: true });
+    update();
   })();
 
   // ---------- Tab 1: Reportar ----------
+
+  let reportMode = "theft"; // "register" (just save the vehicle) or "theft" (full report + reward flow)
+
+  function startFlow(mode) {
+    reportMode = mode;
+    document.getElementById("reportChoice").style.display = "none";
+    document.getElementById("reportFlow").style.display = "block";
+    const registerOnly = mode === "register";
+    document.getElementById("stage-register").style.display = "block";
+    document.getElementById("stage-case").style.display = registerOnly ? "none" : "block";
+    document.getElementById("stage-tip").style.display = registerOnly ? "none" : "block";
+    document.getElementById("stage-validate").style.display = registerOnly ? "none" : "block";
+    document.getElementById("stage-reward").style.display = registerOnly ? "none" : "block";
+    document.getElementById("stage-register").querySelector("h2").innerHTML = registerOnly
+      ? "Registra tu vehículo"
+      : '<span class="n">1.</span> Reporta — registra tu vehículo';
+    document.getElementById("reportFlow").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function backToChoice() {
+    document.getElementById("reportFlow").style.display = "none";
+    document.getElementById("reportChoice").style.display = "block";
+    document.getElementById("reportChoice").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   async function registerVehicle() {
     const ownerName = document.getElementById("ownerName").value;
@@ -767,13 +1244,18 @@
     const box = document.getElementById("result-register");
     box.style.display = "block";
     box.classList.add("success");
-    box.innerHTML = `<span class="headline">${ICONS.check} Denuncia realizada correctamente</span>Vehículo registrado (id: ${vehicleId}) — ${data.photo_count} foto(s)<span class="next-step">Continúa con el paso 2: fija el monto de la recompensa.</span>`;
 
     document.getElementById("vehiclePhoto").src = `${API_BASE}/vehicles/${vehicleId}/photo?index=0&t=${Date.now()}`;
     document.getElementById("vehiclePlateLabel").innerText = `${plate} · ${brand} ${model} (${color})`;
     document.getElementById("vehicleContext").style.display = "flex";
-
     markDone("stage-register");
+
+    if (reportMode === "register") {
+      box.innerHTML = `<span class="headline">${ICONS.check} Vehículo registrado correctamente</span>Guardamos ${data.photo_count} foto(s)/video(s) — id: ${vehicleId}<span class="next-step">Si algún día lo roban, elige "Reportar como robado" para abrir el caso.</span>`;
+      return;
+    }
+
+    box.innerHTML = `<span class="headline">${ICONS.check} Denuncia realizada correctamente</span>Vehículo registrado (id: ${vehicleId}) — ${data.photo_count} foto(s)/video(s)<span class="next-step">Continúa con el paso 2: fija el monto de la recompensa.</span>`;
     markActive("stage-case");
     document.getElementById("btn-case").disabled = false;
     document.getElementById("stage-case").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -810,6 +1292,13 @@
   function startTipFor(targetCaseId, label) {
     caseId = targetCaseId;
     showTab("report");
+    document.getElementById("reportChoice").style.display = "none";
+    document.getElementById("reportFlow").style.display = "block";
+    document.getElementById("stage-register").style.display = "none";
+    document.getElementById("stage-case").style.display = "none";
+    document.getElementById("stage-tip").style.display = "block";
+    document.getElementById("stage-validate").style.display = "block";
+    document.getElementById("stage-reward").style.display = "block";
     document.getElementById("tip-target-info").style.display = "block";
     document.getElementById("tip-target-info").innerText = `Subiendo una pista para: ${label}`;
     document.getElementById("btn-tip").disabled = false;
@@ -924,19 +1413,41 @@
     const container = document.getElementById(`tips-for-${c.case_id}`);
     const res = await fetch(`${API_BASE}/cases/${c.case_id}/tips`);
     const allTips = await res.json();
-    const pending = allTips.filter((t) => !t.paid && t.tier !== "sin_coincidencia");
+    const withEvidence = allTips.filter((t) => t.tier !== "sin_coincidencia");
 
     if (c.status === "closed") {
-      container.innerHTML = `<span class="empty-msg">${ICONS.check} Caso cerrado — recompensas liberadas.</span>`;
+      if (withEvidence.length === 0) {
+        container.innerHTML = `<span class="empty-msg">${ICONS.check} Caso cerrado — recompensas liberadas.</span>`;
+        return;
+      }
+      let closedHtml = `<div style="font-size:13px; color:var(--neu-success); margin-bottom:6px; display:flex; align-items:center; gap:6px;">${ICONS.check} Caso cerrado — recompensas liberadas. Pistas recibidas:</div>`;
+      withEvidence.forEach((t) => {
+        const loc = locationLabel(t);
+        closedHtml += `
+          <div class="tip-row">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="wallet">${shortWallet(t.collaborator_wallet)}</span>
+              <span class="tier-pill tier-${t.tier}">${t.tier.replace('_',' ')}</span>
+              (${(t.similarity * 100).toFixed(0)}%)
+              ${t.paid ? `<span class="status-pill status-closed">Pagado</span>` : `<span class="status-pill status-open">No pagado</span>`}
+            </div>
+            ${loc ? `<span class="tip-location">${ICONS.pin} ${loc}</span>` : ""}
+            ${tipMapHtml(t, t.tip_id)}
+          </div>
+        `;
+      });
+      container.innerHTML = closedHtml;
+      initPendingTipMaps();
       return;
     }
 
+    const pending = withEvidence.filter((t) => !t.paid);
     if (pending.length === 0) {
       container.innerHTML = `<span class="empty-msg">Aún no hay pistas con evidencia suficiente.</span>`;
       return;
     }
 
-    let html = `<div style="font-size:13px; color:var(--text-dim); margin-bottom:6px;">Selecciona quién recuperó el vehículo para liberar las recompensas:</div>`;
+    let html = `<div style="font-size:13px; color:var(--neu-text-secondary); margin-bottom:6px;">Selecciona quién recuperó el vehículo para liberar las recompensas:</div>`;
     pending.forEach((t, i) => {
       const loc = locationLabel(t);
       html += `
