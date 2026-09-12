@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AutoChain — Recupera tu vehículo</title>
+<style>
+  :root {
+    --asphalt: #17181b;
+    --asphalt-2: #1f2125;
+    --line: #2c2f34;
+    --plate-blue: #1f4fd8;
+    --hazard: #f2b705;
+    --text: #eceef1;
+    --text-dim: #9aa0aa;
+    --ok: #3ecf7a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--asphalt);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 20px 96px; }
+  header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+  header .plate {
+    font-family: "Courier New", monospace;
+    background: #fff; color: #111;
+    border: 3px solid var(--plate-blue);
+    border-radius: 4px;
+    padding: 2px 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    font-size: 14px;
+  }
+  h1 { font-size: 30px; margin: 0; letter-spacing: -0.02em; }
+  .sub { color: var(--text-dim); margin: 6px 0 40px; font-size: 15px; }
+  .stat-row { display: flex; gap: 24px; margin-bottom: 44px; flex-wrap: wrap; }
+  .stat { background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 140px; }
+  .stat b { display: block; font-size: 26px; color: var(--hazard); }
+  .stat span { color: var(--text-dim); font-size: 13px; }
+  .stage {
+    background: var(--asphalt-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+    transition: border-color .2s;
+  }
+  .stage.active { border-left-color: var(--hazard); }
+  .stage.done { border-left-color: var(--ok); }
+  .stage h2 { font-size: 16px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+  .stage h2 .n { color: var(--text-dim); font-weight: 400; }
+  .stage p.desc { color: var(--text-dim); font-size: 13.5px; margin: 0 0 14px; }
+  label { display: block; font-size: 13px; color: var(--text-dim); margin: 10px 0 4px; }
+  input[type=text], input[type=number] {
+    width: 100%; background: #101114; border: 1px solid var(--line); color: var(--text);
+    border-radius: 6px; padding: 9px 11px; font-size: 14px;
+  }
+  input[type=file] { font-size: 13px; color: var(--text-dim); }
+  button {
+    background: var(--hazard); color: #17181b; border: none; border-radius: 6px;
+    padding: 10px 18px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 14px;
+  }
+  button:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .result { margin-top: 14px; font-size: 13.5px; padding: 10px 12px; border-radius: 6px; background: #101114; border: 1px solid var(--line); display: none; }
+  .tier-pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-left: 6px; }
+  .tier-evidencia_clave { background: rgba(31,79,216,.2); color: #7ea2ff; }
+  .tier-informacion_util { background: rgba(62,207,122,.18); color: var(--ok); }
+  .tier-sin_coincidencia { background: rgba(255,255,255,.08); color: var(--text-dim); }
+  footer { color: var(--text-dim); font-size: 12px; text-align: center; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="plate">HSK · 2026</div>
+  </header>
+  <h1>AutoChain</h1>
+  <p class="sub">Registro, reporte y recompensa por recuperación de vehículos robados — validado por IA, pagado en stablecoins sobre HSK Chain.</p>
+
+  <div class="stat-row">
+    <div class="stat"><b>3,500</b><span>denuncias de robo vehicular / año en Bolivia</span></div>
+    <div class="stat"><b>64%</b><span>de los vehículos robados nunca se localizan</span></div>
+  </div>
+
+  <!-- STAGE 1: Reporta -->
+  <div class="stage active" id="stage-register">
+    <h2><span class="n">1.</span> Reporta — registra tu vehículo</h2>
+    <p class="desc">Verificación KYC simplificada y registro seguro de documentos del motorizado.</p>
+    <label>Nombre del propietario</label>
+    <input type="text" id="ownerName" placeholder="Juan Pérez" />
+    <label>Placa</label>
+    <input type="text" id="plate" placeholder="7733 FGW" />
+    <label>Foto de referencia del vehículo</label>
+    <input type="file" id="referencePhoto" accept="image/*" />
+    <br/>
+    <button onclick="registerVehicle()">Registrar vehículo</button>
+    <div class="result" id="result-register"></div>
+  </div>
+
+  <!-- STAGE 2: Publica / abre caso -->
+  <div class="stage" id="stage-case">
+    <h2><span class="n">2.</span> Publica — reporta el robo y fija la recompensa</h2>
+    <p class="desc">Carga de datos clave; el monto se bloquea en el contrato en stablecoin hasta que se pague a los colaboradores.</p>
+    <label>Monto de recompensa (stablecoin)</label>
+    <input type="number" id="rewardAmount" placeholder="200" />
+    <br/>
+    <button onclick="reportTheft()" id="btn-case" disabled>Reportar robo y abrir caso</button>
+    <div class="result" id="result-case"></div>
+  </div>
+
+  <!-- STAGE 3: Colabora -->
+  <div class="stage" id="stage-tip">
+    <h2><span class="n">3.</span> Colabora — la comunidad aporta pistas</h2>
+    <p class="desc">Cualquier persona sube una foto/pista en tiempo real.</p>
+    <label>Wallet del colaborador (HSK Chain)</label>
+    <input type="text" id="collaboratorWallet" placeholder="0xabc..." />
+    <label>Foto de la pista</label>
+    <input type="file" id="tipPhoto" accept="image/*" />
+    <br/>
+    <button onclick="submitTip()" id="btn-tip" disabled>Enviar pista</button>
+    <div class="result" id="result-tip"></div>
+  </div>
+
+  <!-- STAGE 4: Valida -->
+  <div class="stage" id="stage-validate">
+    <h2><span class="n">4.</span> Valida — IA analiza coincidencias</h2>
+    <p class="desc">Modelo de embeddings de imagen (CLIP) compara la pista contra la foto de referencia y asigna un score de similitud.</p>
+    <div class="result" id="result-validate" style="display:block;">Esperando una pista para analizar…</div>
+  </div>
+
+  <!-- STAGE 5: Recompensa -->
+  <div class="stage" id="stage-reward">
+    <h2><span class="n">5.</span> Recompensa — desembolso en stablecoin</h2>
+    <p class="desc">Según el nivel de evidencia, el contrato en HSK Chain libera el porcentaje correspondiente al colaborador.</p>
+    <div class="result" id="result-reward" style="display:block;">Sin pagos aún.</div>
+  </div>
+
+  <footer>AutoChain · HSK Chain Track · Buildathon Ethereum Bolivia 2026</footer>
+</div>
+
+<script>
+  const API_BASE = window.AUTOCHAIN_API_BASE || "http://localhost:8000";
+  let vehicleId = null;
+  let caseId = null;
+
+  function markDone(id) {
+    document.getElementById(id).classList.remove("active");
+    document.getElementById(id).classList.add("done");
+  }
+  function markActive(id) {
+    document.getElementById(id).classList.add("active");
+  }
+
+  async function registerVehicle() {
+    const ownerName = document.getElementById("ownerName").value;
+    const plate = document.getElementById("plate").value;
+    const file = document.getElementById("referencePhoto").files[0];
+    if (!ownerName || !plate || !file) return alert("Completa todos los campos.");
+
+    const form = new FormData();
+    form.append("reference_photo", file);
+
+    const url = `${API_BASE}/vehicles/register?owner_name=${encodeURIComponent(ownerName)}&plate=${encodeURIComponent(plate)}&doc_id_hash=demo-hash`;
+    const res = await fetch(url, { method: "POST", body: form });
+    const data = await res.json();
+    vehicleId = data.vehicle_id;
+
+    const box = document.getElementById("result-register");
+    box.style.display = "block";
+    box.innerText = `Vehículo registrado (id: ${vehicleId})`;
+
+    markDone("stage-register");
+    markActive("stage-case");
+    document.getElementById("btn-case").disabled = false;
+  }
+
+  async function reportTheft() {
+    const rewardAmount = document.getElementById("rewardAmount").value;
+    const res = await fetch(`${API_BASE}/cases/report-theft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vehicle_id: vehicleId, reward_amount: Number(rewardAmount) }),
+    });
+    const data = await res.json();
+    caseId = data.case_id;
+
+    const box = document.getElementById("result-case");
+    box.style.display = "block";
+    box.innerText = `Caso abierto (id: ${caseId}) — recompensa bloqueada: ${rewardAmount} stablecoin`;
+
+    markDone("stage-case");
+    markActive("stage-tip");
+    document.getElementById("btn-tip").disabled = false;
+  }
+
+  async function submitTip() {
+    const wallet = document.getElementById("collaboratorWallet").value;
+    const file = document.getElementById("tipPhoto").files[0];
+    if (!wallet || !file) return alert("Completa wallet y foto de la pista.");
+
+    const form = new FormData();
+    form.append("collaborator_wallet", wallet);
+    form.append("tip_photo", file);
+
+    document.getElementById("result-validate").innerText = "Analizando con IA…";
+
+    const res = await fetch(`${API_BASE}/cases/${caseId}/tips`, { method: "POST", body: form });
+    const data = await res.json();
+
+    const tierBox = document.getElementById("result-validate");
+    tierBox.innerHTML = `Similitud: <b>${(data.similarity * 100).toFixed(1)}%</b>
+      <span class="tier-pill tier-${data.tier}">${data.tier.replace('_',' ')}</span>`;
+
+    const rewardBox = document.getElementById("result-reward");
+    if (data.tx_hash) {
+      rewardBox.innerText = `Pago on-chain enviado. Tx: ${data.tx_hash}`;
+    } else if (data.tier !== "sin_coincidencia") {
+      rewardBox.innerText = `Tier "${data.tier}" confirmado — pendiente de firma del validador on-chain.`;
+    } else {
+      rewardBox.innerText = "Sin coincidencia suficiente para recompensa aún.";
+    }
+
+    markDone("stage-tip");
+    markActive("stage-validate");
+  }
+</script>
+</body>
+</html>
