@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AutoChain — Recupera tu vehículo</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root {
     --asphalt: #17181b;
@@ -14,8 +16,10 @@
     --text: #eceef1;
     --text-dim: #9aa0aa;
     --ok: #3ecf7a;
+    --danger: #ff5f5f;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0;
     background: var(--asphalt);
@@ -23,9 +27,73 @@
     font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
     line-height: 1.5;
   }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 20px 96px; }
-  header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
-  header .plate {
+  svg.icon { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.15em; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 0 20px 96px; }
+
+  /* ---------------- Left sidebar ---------------- */
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 232px;
+    background: var(--asphalt-2); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; padding: 22px 16px; gap: 4px;
+    overflow-y: auto; z-index: 100;
+  }
+  .sidebar .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; padding: 0 4px; }
+  .sidebar .brand .brand-mark {
+    width: 34px; height: 34px; border-radius: 8px; background: rgba(31,79,216,.18); color: var(--plate-blue);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .sidebar .brand .brand-mark svg.icon { width: 18px; height: 18px; }
+  .sidebar .brand .brand-name { font-weight: 800; font-size: 17px; letter-spacing: -0.01em; }
+  .sidebar nav { display: flex; flex-direction: column; gap: 4px; }
+  .side-link {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+    color: var(--text-dim); text-decoration: none; font-size: 13.5px; font-weight: 600; cursor: pointer;
+    background: none; border: none; text-align: left; width: 100%; margin-top: 0;
+  }
+  .side-link:hover { background: rgba(255,255,255,.04); color: var(--text); filter: none; }
+  .side-link.active { background: rgba(242,183,5,.12); color: var(--hazard); }
+  .side-link svg.icon { width: 17px; height: 17px; flex-shrink: 0; }
+  .sidebar .side-stats { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+  .sidebar .side-stat b { display: block; font-size: 19px; color: var(--hazard); }
+  .sidebar .side-stat span { font-size: 11.5px; color: var(--text-dim); }
+
+  .main-content { margin-left: 232px; }
+
+  @media (max-width: 880px) {
+    .sidebar {
+      position: static; width: 100%; flex-direction: row; align-items: center;
+      padding: 10px 14px; border-right: none; border-bottom: 1px solid var(--line);
+      overflow-x: auto; gap: 6px;
+    }
+    .sidebar .brand { margin-bottom: 0; margin-right: 10px; }
+    .sidebar nav { flex-direction: row; }
+    .side-link { white-space: nowrap; padding: 8px 10px; }
+    .sidebar .side-stats { display: none; }
+    .main-content { margin-left: 0; }
+  }
+
+  /* ---------------- Hero / landing ---------------- */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 56px 20px 64px;
+    text-align: center;
+    background:
+      radial-gradient(ellipse 60% 50% at 50% 0%, rgba(31,79,216,.35) 0%, rgba(31,79,216,0) 70%),
+      var(--asphalt);
+    border-bottom: 1px solid var(--line);
+  }
+  .hero::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(90deg, transparent 0 78px, rgba(255,255,255,.035) 78px 80px);
+    animation: roadScroll 3.5s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes roadScroll { from { background-position-x: 0; } to { background-position-x: 160px; } }
+  .hero-inner { position: relative; max-width: 780px; margin: 0 auto; }
+  .plate-badge {
+    display: inline-flex; align-items: center; gap: 6px;
     font-family: "Courier New", monospace;
     background: #fff; color: #111;
     border: 3px solid var(--plate-blue);
@@ -33,14 +101,76 @@
     padding: 2px 10px;
     font-weight: 700;
     letter-spacing: 2px;
-    font-size: 14px;
+    font-size: 13px;
+    margin-bottom: 18px;
   }
-  h1 { font-size: 30px; margin: 0; letter-spacing: -0.02em; }
-  .sub { color: var(--text-dim); margin: 6px 0 40px; font-size: 15px; }
-  .stat-row { display: flex; gap: 24px; margin-bottom: 44px; flex-wrap: wrap; }
+  .hero-title { font-size: 46px; margin: 0; letter-spacing: -0.03em; font-weight: 800; }
+  .hero-tagline { color: var(--text-dim); font-size: 16px; max-width: 520px; margin: 12px auto 0; }
+
+  /* 3D flip card: robado -> recuperado */
+  .flip-stage { margin: 36px auto 8px; perspective: 900px; width: 220px; height: 140px; }
+  .flip-tilt { width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .15s ease-out; }
+  .flip-inner {
+    position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
+    animation: flipCard 6s infinite cubic-bezier(.65,0,.35,1);
+  }
+  .flip-face {
+    position: absolute; inset: 0; backface-visibility: hidden;
+    border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; letter-spacing: .04em; gap: 8px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.45);
+  }
+  .flip-face svg.icon { width: 34px; height: 34px; stroke-width: 1.6; }
+  .flip-front { background: linear-gradient(145deg,#3a1010,#1a0707); border: 2px solid var(--danger); color: #ff9d9d; }
+  .flip-back { background: linear-gradient(145deg,#0d3a1c,#062310); border: 2px solid var(--ok); color: var(--ok); transform: rotateY(180deg); }
+  @keyframes flipCard {
+    0%, 42%   { transform: rotateY(0deg); }
+    50%, 92%  { transform: rotateY(180deg); }
+    100%      { transform: rotateY(360deg); }
+  }
+
+  .hero-ctas { display: flex; gap: 14px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
+  .hero-ctas button { margin-top: 0; display: inline-flex; align-items: center; gap: 8px; }
+
+  .stat-row { display: flex; gap: 24px; margin: 40px auto 0; flex-wrap: wrap; max-width: 620px; }
   .stat { background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 140px; }
   .stat b { display: block; font-size: 26px; color: var(--hazard); }
   .stat span { color: var(--text-dim); font-size: 13px; }
+
+  /* ---------------- Cómo funciona ---------------- */
+  .steps-section { max-width: 900px; margin: 0 auto; padding: 56px 20px 8px; }
+  .section-title { text-align: center; font-size: 24px; margin: 0 0 6px; font-weight: 800; }
+  .section-sub { text-align: center; color: var(--text-dim); font-size: 14px; margin: 0 0 30px; }
+  .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+  .step {
+    background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px 16px; text-align: center;
+    opacity: 0; transform: translateY(18px) scale(.97);
+    transition: opacity .5s ease, transform .5s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0) scale(1); }
+  .step .icon-wrap {
+    width: 46px; height: 46px; margin: 0 auto 10px; border-radius: 50%;
+    background: rgba(242,183,5,.12); color: var(--hazard);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step .icon-wrap svg.icon { width: 22px; height: 22px; stroke-width: 1.8; }
+  .step h3 { font-size: 14px; margin: 0 0 6px; }
+  .step p { font-size: 12.5px; color: var(--text-dim); margin: 0; }
+
+  /* ---------------- App (tabs) ---------------- */
+  .app-section { padding-top: 48px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
+  .tab-btn {
+    background: none; color: var(--text-dim); border: none; border-bottom: 2px solid transparent;
+    border-radius: 0; padding: 10px 4px; margin: 0 14px 0 0; font-size: 14.5px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tab-btn:hover { color: var(--text); filter: none; }
+  .tab-btn.active { color: var(--hazard); border-bottom-color: var(--hazard); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
   .stage {
     background: var(--asphalt-2);
     border: 1px solid var(--line);
@@ -56,98 +186,303 @@
   .stage h2 .n { color: var(--text-dim); font-weight: 400; }
   .stage p.desc { color: var(--text-dim); font-size: 13.5px; margin: 0 0 14px; }
   label { display: block; font-size: 13px; color: var(--text-dim); margin: 10px 0 4px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-row.three { grid-template-columns: 1fr 1fr 1fr; }
   input[type=text], input[type=number] {
     width: 100%; background: #101114; border: 1px solid var(--line); color: var(--text);
     border-radius: 6px; padding: 9px 11px; font-size: 14px;
   }
   input[type=file] { font-size: 13px; color: var(--text-dim); }
+  .photo-gallery { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .photo-gallery img {
+    width: 84px; height: 84px; border-radius: 8px; object-fit: cover; border: 1px solid var(--line);
+  }
+  .vehicle-context {
+    display: none; align-items: center; gap: 12px; background: var(--asphalt-2);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: -6px 0 18px;
+  }
+  .vehicle-context img { width: 56px; height: 56px; border-radius: 6px; object-fit: cover; border: 1px solid var(--line); }
+  .vehicle-context span { font-size: 13px; color: var(--text-dim); }
+  .vehicle-context b { color: var(--text); }
   button {
     background: var(--hazard); color: #17181b; border: none; border-radius: 6px;
     padding: 10px 18px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 14px;
   }
   button:hover { filter: brightness(1.08); }
   button:disabled { opacity: .4; cursor: not-allowed; }
+  button.secondary { background: transparent; color: var(--hazard); border: 1px solid var(--hazard); padding: 9px 17px; font-size: 14px; }
+  button.secondary.small { padding: 9px 16px; font-size: 14px; margin-top: auto; align-self: flex-start; }
+  button.ghost { background: var(--asphalt-2); color: var(--text); border: 1px solid var(--line); }
   .result { margin-top: 14px; font-size: 13.5px; padding: 10px 12px; border-radius: 6px; background: #101114; border: 1px solid var(--line); display: none; }
+  .result.success { border-color: var(--ok); background: rgba(62,207,122,.1); }
+  .result.success .headline { color: var(--ok); font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .result .next-step { color: var(--text-dim); display: block; margin-top: 2px; }
   .tier-pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-left: 6px; }
   .tier-evidencia_clave { background: rgba(31,79,216,.2); color: #7ea2ff; }
   .tier-informacion_util { background: rgba(62,207,122,.18); color: var(--ok); }
   .tier-sin_coincidencia { background: rgba(255,255,255,.08); color: var(--text-dim); }
+  .status-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+  .status-open { background: rgba(242,183,5,.18); color: var(--hazard); }
+  .status-closed { background: rgba(62,207,122,.18); color: var(--ok); }
+
+  .location-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .location-row button { margin-top: 0; }
+  .location-status { font-size: 12.5px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 5px; }
+  .location-status.set { color: var(--ok); }
+
+  .lookup-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 24px; }
+  .lookup-row > div { flex: 1; }
+  .lookup-row button { margin-top: 0; white-space: nowrap; }
+
+  /* ---------------- Marketplace-style case cards ---------------- */
+  .case-card {
+    display: flex; gap: 20px; background: var(--asphalt-2); border: 1px solid var(--line);
+    border-radius: 12px; padding: 22px; margin-bottom: 18px;
+    opacity: 0; transform: translateY(10px); animation: cardIn .4s ease forwards;
+  }
+  @keyframes cardIn { to { opacity: 1; transform: translateY(0); } }
+  .case-card .gallery { position: relative; width: 160px; height: 160px; flex-shrink: 0; }
+  .case-card .gallery img { width: 160px; height: 160px; border-radius: 10px; object-fit: cover; border: 1px solid var(--line); display: block; }
+  .case-card .gallery .nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0; font-size: 0;
+  }
+  .case-card .gallery .nav svg.icon { width: 16px; height: 16px; }
+  .case-card .gallery .nav.prev { left: 6px; }
+  .case-card .gallery .nav.next { right: 6px; }
+  .case-card .gallery .dots { position: absolute; bottom: 6px; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; }
+  .case-card .gallery .dots span { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.5); }
+  .case-card .gallery .dots span.active { background: #fff; }
+  .case-card .body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .case-card .top-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .case-card .plate-label { font-weight: 700; font-size: 20px; }
+  .case-card .specs { color: var(--text-dim); font-size: 14.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .case-card .meta { color: var(--text-dim); font-size: 15px; }
+
+  .tips-list { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .tip-row { display: flex; flex-direction: column; gap: 2px; font-size: 13px; padding: 7px 0; color: var(--text-dim); border-bottom: 1px dashed var(--line); }
+  .tip-row:last-of-type { border-bottom: none; }
+  .tip-row label { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: var(--text); cursor: pointer; }
+  .tip-row .wallet { font-family: "Courier New", monospace; }
+  .tip-row .tip-location { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 5px; margin-left: 24px; }
+  .tip-map { width: 220px; height: 140px; border-radius: 8px; border: 1px solid var(--line); margin: 6px 0 2px 24px; overflow: hidden; background: #101114; }
+  .tip-map.missing { display: none; }
+  .empty-msg { color: var(--text-dim); font-size: 13.5px; padding: 8px 0; }
+
   footer { color: var(--text-dim); font-size: 12px; text-align: center; margin-top: 40px; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="plate">HSK · 2026</div>
-  </header>
-  <h1>AutoChain</h1>
-  <p class="sub">Registro, reporte y recompensa por recuperación de vehículos robados — validado por IA, pagado en stablecoins sobre HSK Chain.</p>
 
-  <div class="stat-row">
-    <div class="stat"><b>3,500</b><span>denuncias de robo vehicular / año en Bolivia</span></div>
-    <div class="stat"><b>64%</b><span>de los vehículos robados nunca se localizan</span></div>
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark" id="brand-mark"></div>
+    <span class="brand-name">AutoChain</span>
+  </div>
+  <nav>
+    <button class="side-link active" id="navtab-report" onclick="goToApp('report')"></button>
+    <button class="side-link" id="navtab-mine" onclick="goToApp('mine')"></button>
+    <button class="side-link" id="navtab-public" onclick="goToApp('public')"></button>
+  </nav>
+  <div class="side-stats">
+    <div class="side-stat"><b>3,500</b><span>denuncias/año en Bolivia</span></div>
+    <div class="side-stat"><b>64%</b><span>nunca se localizan</span></div>
+  </div>
+</aside>
+
+<div class="main-content">
+<div class="hero">
+  <div class="hero-inner">
+    <div class="plate-badge">HSK · 2026</div>
+    <h1 class="hero-title">AutoChain</h1>
+    <p class="hero-tagline">La red híbrida de colaboración ciudadana + IA + blockchain que recupera vehículos robados en Bolivia — recompensas en stablecoin sobre HSK Chain.</p>
+
+    <div class="flip-stage" id="flipStage">
+      <div class="flip-tilt" id="flipTilt">
+        <div class="flip-inner">
+          <div class="flip-face flip-front" id="icon-alert">ROBADO</div>
+          <div class="flip-face flip-back" id="icon-check-big">RECUPERADO</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-ctas">
+      <button onclick="goToApp('report')" id="cta-report">Reportar un robo</button>
+      <button class="secondary" onclick="goToApp('public')" id="cta-public">Ver autos perdidos</button>
+      <button class="secondary" onclick="goToApp('mine')" id="cta-mine">Mis denuncias</button>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><b>3,500</b><span>denuncias de robo vehicular / año en Bolivia</span></div>
+      <div class="stat"><b>64%</b><span>de los vehículos robados nunca se localizan</span></div>
+    </div>
+  </div>
+</div>
+
+<section class="steps-section">
+  <div class="section-title">¿Cómo funciona?</div>
+  <p class="section-sub">Del reporte a la recompensa, en 5 pasos.</p>
+  <div class="steps-grid">
+    <div class="step"><div class="icon-wrap" id="step-icon-1"></div><h3>1. Reporta</h3><p>Registras tu vehículo con verificación KYC simplificada.</p></div>
+    <div class="step"><div class="icon-wrap" id="step-icon-2"></div><h3>2. Publica</h3><p>Fijas la recompensa, bloqueada en stablecoin dentro del contrato.</p></div>
+    <div class="step"><div class="icon-wrap" id="step-icon-3"></div><h3>3. Colabora</h3><p>Cualquier persona sube una foto, con ubicación, en tiempo real.</p></div>
+    <div class="step"><div class="icon-wrap" id="step-icon-4"></div><h3>4. Valida</h3><p>Un modelo de IA (CLIP) compara la pista y asigna un score.</p></div>
+    <div class="step"><div class="icon-wrap" id="step-icon-5"></div><h3>5. Recompensa</h3><p>Al confirmar la recuperación, el contrato libera el pago on-chain.</p></div>
+  </div>
+</section>
+
+<div class="wrap app-section" id="app-section">
+  <!-- ============ TAB: REPORTAR ============ -->
+  <div class="tab-panel active" id="tab-report">
+
+    <!-- STAGE 1: Reporta -->
+    <div class="stage active" id="stage-register">
+      <h2><span class="n">1.</span> Reporta — registra tu vehículo</h2>
+      <p class="desc">Verificación KYC simplificada y ficha completa del vehículo, como en un marketplace.</p>
+      <label>Nombre del propietario</label>
+      <input type="text" id="ownerName" placeholder="Juan Pérez" />
+      <label>Tu wallet (para gestionar tu denuncia y recibir/confirmar recompensas)</label>
+      <input type="text" id="ownerWallet" placeholder="0xabc..." />
+      <label>Placa</label>
+      <input type="text" id="plate" placeholder="7733 FGW" />
+
+      <div class="field-row three">
+        <div>
+          <label>Marca</label>
+          <input type="text" id="brand" placeholder="Toyota" />
+        </div>
+        <div>
+          <label>Modelo</label>
+          <input type="text" id="model" placeholder="Corolla" />
+        </div>
+        <div>
+          <label>Color</label>
+          <input type="text" id="color" placeholder="Rojo" />
+        </div>
+      </div>
+
+      <label>Fotos de referencia del vehículo (puedes elegir varias: frontal, lateral, placa…)</label>
+      <input type="file" id="referencePhotos" accept="image/*" multiple onchange="previewFiles(this, 'previewReferenceGallery')" />
+      <div class="photo-gallery" id="previewReferenceGallery"></div>
+      <br/>
+      <button onclick="registerVehicle()">Registrar vehículo</button>
+      <div class="result" id="result-register"></div>
+    </div>
+
+    <div class="vehicle-context" id="vehicleContext">
+      <img id="vehiclePhoto" alt="Foto del vehículo buscado" />
+      <span>Buscando: <b id="vehiclePlateLabel"></b></span>
+    </div>
+
+    <!-- STAGE 2: Publica / abre caso -->
+    <div class="stage" id="stage-case">
+      <h2><span class="n">2.</span> Publica — reporta el robo y fija la recompensa</h2>
+      <p class="desc">Carga de datos clave; el monto se bloquea en el contrato en stablecoin hasta que se pague a los colaboradores.</p>
+      <label>Monto de recompensa (stablecoin)</label>
+      <input type="number" id="rewardAmount" placeholder="200" />
+      <br/>
+      <button onclick="reportTheft()" id="btn-case" disabled>Reportar robo y abrir caso</button>
+      <div class="result" id="result-case"></div>
+    </div>
+
+    <!-- STAGE 3: Colabora -->
+    <div class="stage" id="stage-tip">
+      <h2><span class="n">3.</span> Colabora — la comunidad aporta pistas</h2>
+      <p class="desc">Cualquier persona sube una foto/pista en tiempo real, con su ubicación. Puedes hacerlo para tu propio caso reci&eacute;n abierto, o para cualquier veh&iacute;culo de la pesta&ntilde;a "Autos perdidos reportados".</p>
+      <div class="result" id="tip-target-info" style="display:none;"></div>
+      <label>Wallet del colaborador (HSK Chain)</label>
+      <input type="text" id="collaboratorWallet" placeholder="0xabc..." />
+      <label>Fotos de la pista (puedes subir varias)</label>
+      <input type="file" id="tipPhoto" accept="image/*" multiple onchange="previewFiles(this, 'previewTipGallery')" />
+      <div class="photo-gallery" id="previewTipGallery"></div>
+
+      <label>Ubicación</label>
+      <div class="location-row">
+        <button type="button" class="ghost" onclick="captureLocation()" id="btn-location"></button>
+        <span class="location-status" id="location-status">Sin ubicación capturada</span>
+      </div>
+      <input type="text" id="locationNote" placeholder="Referencia adicional (ej: cerca a la plaza principal)" style="margin-top:10px;" />
+
+      <button onclick="submitTip()" id="btn-tip" disabled>Enviar pista</button>
+      <div class="result" id="result-tip"></div>
+    </div>
+
+    <!-- STAGE 4: Valida -->
+    <div class="stage" id="stage-validate">
+      <h2><span class="n">4.</span> Valida — IA analiza coincidencias</h2>
+      <p class="desc">Modelo de embeddings de imagen (CLIP) compara la pista contra las fotos de referencia y asigna un score de similitud (se usa la mejor coincidencia entre todas las fotos).</p>
+      <div class="result" id="result-validate" style="display:block;">Esperando una pista para analizar…</div>
+    </div>
+
+    <!-- STAGE 5: Recompensa -->
+    <div class="stage" id="stage-reward">
+      <h2><span class="n">5.</span> Recompensa — desembolso en stablecoin</h2>
+      <p class="desc">Las recompensas de todas las pistas pendientes se liberan on-chain reci&eacute;n cuando el due&ntilde;o marca el veh&iacute;culo como recuperado, desde la pesta&ntilde;a "Mis denuncias".</p>
+      <div class="result" id="result-reward" style="display:block;">Sin pagos aún.</div>
+    </div>
   </div>
 
-  <!-- STAGE 1: Reporta -->
-  <div class="stage active" id="stage-register">
-    <h2><span class="n">1.</span> Reporta — registra tu vehículo</h2>
-    <p class="desc">Verificación KYC simplificada y registro seguro de documentos del motorizado.</p>
-    <label>Nombre del propietario</label>
-    <input type="text" id="ownerName" placeholder="Juan Pérez" />
-    <label>Placa</label>
-    <input type="text" id="plate" placeholder="7733 FGW" />
-    <label>Foto de referencia del vehículo</label>
-    <input type="file" id="referencePhoto" accept="image/*" />
-    <br/>
-    <button onclick="registerVehicle()">Registrar vehículo</button>
-    <div class="result" id="result-register"></div>
+  <!-- ============ TAB: MIS DENUNCIAS ============ -->
+  <div class="tab-panel" id="tab-mine">
+    <div class="lookup-row">
+      <div>
+        <label>Tu wallet</label>
+        <input type="text" id="mineWalletInput" placeholder="0xabc..." />
+      </div>
+      <button onclick="loadMyCases()">Buscar</button>
+    </div>
+    <div id="mineList"></div>
   </div>
 
-  <!-- STAGE 2: Publica / abre caso -->
-  <div class="stage" id="stage-case">
-    <h2><span class="n">2.</span> Publica — reporta el robo y fija la recompensa</h2>
-    <p class="desc">Carga de datos clave; el monto se bloquea en el contrato en stablecoin hasta que se pague a los colaboradores.</p>
-    <label>Monto de recompensa (stablecoin)</label>
-    <input type="number" id="rewardAmount" placeholder="200" />
-    <br/>
-    <button onclick="reportTheft()" id="btn-case" disabled>Reportar robo y abrir caso</button>
-    <div class="result" id="result-case"></div>
-  </div>
-
-  <!-- STAGE 3: Colabora -->
-  <div class="stage" id="stage-tip">
-    <h2><span class="n">3.</span> Colabora — la comunidad aporta pistas</h2>
-    <p class="desc">Cualquier persona sube una foto/pista en tiempo real.</p>
-    <label>Wallet del colaborador (HSK Chain)</label>
-    <input type="text" id="collaboratorWallet" placeholder="0xabc..." />
-    <label>Foto de la pista</label>
-    <input type="file" id="tipPhoto" accept="image/*" />
-    <br/>
-    <button onclick="submitTip()" id="btn-tip" disabled>Enviar pista</button>
-    <div class="result" id="result-tip"></div>
-  </div>
-
-  <!-- STAGE 4: Valida -->
-  <div class="stage" id="stage-validate">
-    <h2><span class="n">4.</span> Valida — IA analiza coincidencias</h2>
-    <p class="desc">Modelo de embeddings de imagen (CLIP) compara la pista contra la foto de referencia y asigna un score de similitud.</p>
-    <div class="result" id="result-validate" style="display:block;">Esperando una pista para analizar…</div>
-  </div>
-
-  <!-- STAGE 5: Recompensa -->
-  <div class="stage" id="stage-reward">
-    <h2><span class="n">5.</span> Recompensa — desembolso en stablecoin</h2>
-    <p class="desc">Según el nivel de evidencia, el contrato en HSK Chain libera el porcentaje correspondiente al colaborador.</p>
-    <div class="result" id="result-reward" style="display:block;">Sin pagos aún.</div>
+  <!-- ============ TAB: AUTOS PERDIDOS ============ -->
+  <div class="tab-panel" id="tab-public">
+    <p class="desc" style="margin-bottom:16px;">Todos los veh&iacute;culos reportados como robados en AutoChain. Si reconoces alguno, sube una pista con foto y ubicaci&oacute;n.</p>
+    <div id="publicList"></div>
   </div>
 
   <footer>AutoChain · HSK Chain Track · Buildathon Ethereum Bolivia 2026</footer>
 </div>
+</div>
 
 <script>
+  // ---------- Inline SVG icon library (no external deps, works fully offline) ----------
+  const ICONS = {
+    alert: '<svg class="icon" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    check: '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>',
+    clipboard: '<svg class="icon" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></svg>',
+    coins: '<svg class="icon" viewBox="0 0 24 24"><ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v6c0 1.66 2.69 3 6 3s6-1.34 6-3V7"/><path d="M15 10.5c2.9.3 6 1.4 6 3.5s-3.1 3.2-6 3.5"/><path d="M3 13v3c0 1.66 2.69 3 6 3s6-1.34 6-3v-3"/></svg>',
+    users: '<svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    cpu: '<svg class="icon" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>',
+    link: '<svg class="icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>',
+    car: '<svg class="icon" viewBox="0 0 24 24"><path d="M5 17h14M5 17a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm14 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0ZM3 17V11l2-5h14l2 5v6"/><path d="M5 11h14"/></svg>',
+    pin: '<svg class="icon" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+    search: '<svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    list: '<svg class="icon" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+    chevronLeft: '<svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>',
+    chevronRight: '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',
+  };
+
+  document.getElementById("icon-alert").innerHTML = ICONS.alert + "<span>ROBADO</span>";
+  document.getElementById("icon-check-big").innerHTML = ICONS.check + "<span>RECUPERADO</span>";
+  document.getElementById("cta-report").innerHTML = ICONS.clipboard + " Reportar un robo";
+  document.getElementById("cta-public").innerHTML = ICONS.car + " Ver autos perdidos";
+  document.getElementById("cta-mine").innerHTML = ICONS.list + " Mis denuncias";
+  document.getElementById("step-icon-1").innerHTML = ICONS.clipboard;
+  document.getElementById("step-icon-2").innerHTML = ICONS.coins;
+  document.getElementById("step-icon-3").innerHTML = ICONS.users;
+  document.getElementById("step-icon-4").innerHTML = ICONS.cpu;
+  document.getElementById("step-icon-5").innerHTML = ICONS.link;
+  document.getElementById("brand-mark").innerHTML = ICONS.link;
+  document.getElementById("navtab-report").innerHTML = ICONS.clipboard + " Reportar";
+  document.getElementById("navtab-mine").innerHTML = ICONS.list + " Mis denuncias";
+  document.getElementById("navtab-public").innerHTML = ICONS.car + " Autos perdidos reportados";
+  document.getElementById("btn-location").innerHTML = ICONS.pin + " Obtener mi ubicación";
+
   const API_BASE = window.AUTOCHAIN_API_BASE || "http://localhost:8000";
   let vehicleId = null;
   let caseId = null;
+  let capturedLocation = null; // { latitude, longitude }
 
   function markDone(id) {
     document.getElementById(id).classList.remove("active");
@@ -157,27 +492,144 @@
     document.getElementById(id).classList.add("active");
   }
 
+  function showTab(name) {
+    document.querySelectorAll(".tab-panel").forEach((el) => el.classList.remove("active"));
+    document.querySelectorAll(".side-link").forEach((el) => el.classList.remove("active"));
+    document.getElementById(`tab-${name}`).classList.add("active");
+    document.getElementById(`navtab-${name}`).classList.add("active");
+    if (name === "mine") loadMyCases();
+    if (name === "public") loadPublicCases();
+  }
+
+  function goToApp(tabName) {
+    showTab(tabName);
+    document.getElementById("app-section").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function previewFiles(input, galleryId) {
+    const gallery = document.getElementById(galleryId);
+    gallery.innerHTML = "";
+    Array.from(input.files || []).forEach((file) => {
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(file);
+      img.alt = "Vista previa";
+      gallery.appendChild(img);
+    });
+  }
+
+  function shortWallet(w) {
+    if (!w || w.length < 12) return w || "";
+    return `${w.slice(0, 6)}…${w.slice(-4)}`;
+  }
+
+  function locationLabel(t) {
+    if (t.location_note) return t.location_note;
+    if (t.latitude != null && t.longitude != null) return `${t.latitude.toFixed(4)}, ${t.longitude.toFixed(4)}`;
+    return null;
+  }
+
+  // Small embedded map (Leaflet + OpenStreetMap tiles, no API key needed).
+  // Renders a placeholder div now; initTipMap() fills it in once it's in the DOM.
+  const pendingMapInits = [];
+  function tipMapHtml(t, tipId) {
+    if (t.latitude == null || t.longitude == null) return "";
+    const mapId = `tipmap-${tipId}`;
+    pendingMapInits.push({ mapId, lat: t.latitude, lon: t.longitude });
+    return `<div class="tip-map" id="${mapId}"></div>`;
+  }
+
+  function initPendingTipMaps() {
+    if (typeof L === "undefined") return; // Leaflet failed to load (no internet) — thumbnails just stay empty.
+    while (pendingMapInits.length) {
+      const { mapId, lat, lon } = pendingMapInits.pop();
+      const el = document.getElementById(mapId);
+      if (!el) continue;
+      try {
+        const map = L.map(mapId, { attributionControl: false, zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
+        map.setView([lat, lon], 15);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+        L.marker([lat, lon]).addTo(map);
+      } catch (e) {
+        el.classList.add("missing");
+      }
+    }
+  }
+
+  // ---------- Hero 3D tilt + scroll-reveal for steps ----------
+
+  (function initHeroInteractions() {
+    const stage = document.getElementById("flipStage");
+    const tilt = document.getElementById("flipTilt");
+    if (stage && tilt && matchMedia("(hover: hover)").matches) {
+      stage.addEventListener("mousemove", (e) => {
+        const rect = stage.getBoundingClientRect();
+        const px = (e.clientX - rect.left) / rect.width - 0.5;
+        const py = (e.clientY - rect.top) / rect.height - 0.5;
+        tilt.style.transform = `rotateY(${px * 22}deg) rotateX(${-py * 22}deg)`;
+      });
+      stage.addEventListener("mouseleave", () => {
+        tilt.style.transform = "rotateY(0deg) rotateX(0deg)";
+      });
+    }
+
+    const steps = document.querySelectorAll(".step");
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry, i) => {
+            if (entry.isIntersecting) {
+              setTimeout(() => entry.target.classList.add("visible"), i * 90);
+              io.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.2 }
+      );
+      steps.forEach((s) => io.observe(s));
+    } else {
+      steps.forEach((s) => s.classList.add("visible"));
+    }
+  })();
+
+  // ---------- Tab 1: Reportar ----------
+
   async function registerVehicle() {
     const ownerName = document.getElementById("ownerName").value;
+    const ownerWallet = document.getElementById("ownerWallet").value;
     const plate = document.getElementById("plate").value;
-    const file = document.getElementById("referencePhoto").files[0];
-    if (!ownerName || !plate || !file) return alert("Completa todos los campos.");
+    const brand = document.getElementById("brand").value;
+    const model = document.getElementById("model").value;
+    const color = document.getElementById("color").value;
+    const files = document.getElementById("referencePhotos").files;
+    if (!ownerName || !ownerWallet || !plate || !brand || !model || !color || files.length === 0) {
+      return alert("Completa todos los campos y sube al menos una foto.");
+    }
 
     const form = new FormData();
-    form.append("reference_photo", file);
+    Array.from(files).forEach((f) => form.append("reference_photos", f));
 
-    const url = `${API_BASE}/vehicles/register?owner_name=${encodeURIComponent(ownerName)}&plate=${encodeURIComponent(plate)}&doc_id_hash=demo-hash`;
-    const res = await fetch(url, { method: "POST", body: form });
+    const params = new URLSearchParams({
+      owner_name: ownerName, plate, doc_id_hash: "demo-hash", owner_wallet: ownerWallet,
+      brand, model, color,
+    });
+    const res = await fetch(`${API_BASE}/vehicles/register?${params}`, { method: "POST", body: form });
     const data = await res.json();
     vehicleId = data.vehicle_id;
+    localStorage.setItem("autochain_owner_wallet", ownerWallet);
 
     const box = document.getElementById("result-register");
     box.style.display = "block";
-    box.innerText = `Vehículo registrado (id: ${vehicleId})`;
+    box.classList.add("success");
+    box.innerHTML = `<span class="headline">${ICONS.check} Denuncia realizada correctamente</span>Vehículo registrado (id: ${vehicleId}) — ${data.photo_count} foto(s)<span class="next-step">Continúa con el paso 2: fija el monto de la recompensa.</span>`;
+
+    document.getElementById("vehiclePhoto").src = `${API_BASE}/vehicles/${vehicleId}/photo?index=0&t=${Date.now()}`;
+    document.getElementById("vehiclePlateLabel").innerText = `${plate} · ${brand} ${model} (${color})`;
+    document.getElementById("vehicleContext").style.display = "flex";
 
     markDone("stage-register");
     markActive("stage-case");
     document.getElementById("btn-case").disabled = false;
+    document.getElementById("stage-case").scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   async function reportTheft() {
@@ -194,19 +646,59 @@
     box.style.display = "block";
     box.innerText = `Caso abierto (id: ${caseId}) — recompensa bloqueada: ${rewardAmount} stablecoin`;
 
+    document.getElementById("tip-target-info").style.display = "none";
     markDone("stage-case");
     markActive("stage-tip");
     document.getElementById("btn-tip").disabled = false;
   }
 
+  // Lets someone jump straight into stage 3 for a case picked from the
+  // "Autos perdidos reportados" board, without having registered it themselves.
+  function startTipFor(targetCaseId, label) {
+    caseId = targetCaseId;
+    showTab("report");
+    document.getElementById("tip-target-info").style.display = "block";
+    document.getElementById("tip-target-info").innerText = `Subiendo una pista para: ${label}`;
+    document.getElementById("btn-tip").disabled = false;
+    markActive("stage-tip");
+    document.getElementById("stage-tip").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function captureLocation() {
+    const status = document.getElementById("location-status");
+    if (!navigator.geolocation) {
+      status.innerText = "Geolocalización no disponible en este navegador — usa el campo de texto.";
+      return;
+    }
+    status.innerText = "Obteniendo ubicación…";
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        capturedLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        status.classList.add("set");
+        status.innerHTML = `${ICONS.pin} ${capturedLocation.latitude.toFixed(4)}, ${capturedLocation.longitude.toFixed(4)}`;
+      },
+      () => {
+        status.classList.remove("set");
+        status.innerText = "No se pudo obtener tu ubicación (permiso denegado) — usa el campo de texto.";
+      }
+    );
+  }
+
   async function submitTip() {
     const wallet = document.getElementById("collaboratorWallet").value;
-    const file = document.getElementById("tipPhoto").files[0];
-    if (!wallet || !file) return alert("Completa wallet y foto de la pista.");
+    const files = document.getElementById("tipPhoto").files;
+    const locationNote = document.getElementById("locationNote").value;
+    if (!caseId) return alert("Primero selecciona un caso (paso 2, o desde 'Autos perdidos reportados').");
+    if (!wallet || files.length === 0) return alert("Completa wallet y al menos una foto de la pista.");
 
     const form = new FormData();
     form.append("collaborator_wallet", wallet);
-    form.append("tip_photo", file);
+    Array.from(files).forEach((f) => form.append("tip_photos", f));
+    if (locationNote) form.append("location_note", locationNote);
+    if (capturedLocation) {
+      form.append("latitude", capturedLocation.latitude);
+      form.append("longitude", capturedLocation.longitude);
+    }
 
     document.getElementById("result-validate").innerText = "Analizando con IA…";
 
@@ -218,16 +710,174 @@
       <span class="tier-pill tier-${data.tier}">${data.tier.replace('_',' ')}</span>`;
 
     const rewardBox = document.getElementById("result-reward");
-    if (data.tx_hash) {
-      rewardBox.innerText = `Pago on-chain enviado. Tx: ${data.tx_hash}`;
-    } else if (data.tier !== "sin_coincidencia") {
-      rewardBox.innerText = `Tier "${data.tier}" confirmado — pendiente de firma del validador on-chain.`;
+    if (data.tier !== "sin_coincidencia") {
+      rewardBox.innerText = `Pista registrada con tier "${data.tier}" — quedará pendiente de pago hasta que el dueño confirme la recuperación del vehículo (pestaña "Mis denuncias").`;
     } else {
-      rewardBox.innerText = "Sin coincidencia suficiente para recompensa aún.";
+      rewardBox.innerText = "Sin coincidencia suficiente para recompensa.";
     }
 
     markDone("stage-tip");
     markActive("stage-validate");
+  }
+
+  // ---------- Tab 2: Mis denuncias ----------
+
+  async function loadMyCases() {
+    const stored = localStorage.getItem("autochain_owner_wallet");
+    const input = document.getElementById("mineWalletInput");
+    if (!input.value && stored) input.value = stored;
+    const wallet = input.value.trim();
+
+    const list = document.getElementById("mineList");
+    if (!wallet) {
+      list.innerHTML = `<p class="empty-msg">Ingresa tu wallet (la misma que usaste al registrar el vehículo) para ver tus denuncias.</p>`;
+      return;
+    }
+    localStorage.setItem("autochain_owner_wallet", wallet);
+
+    list.innerHTML = `<p class="empty-msg">Cargando…</p>`;
+    const res = await fetch(`${API_BASE}/cases?owner_wallet=${encodeURIComponent(wallet)}`);
+    const myCases = await res.json();
+
+    if (myCases.length === 0) {
+      list.innerHTML = `<p class="empty-msg">No se encontraron denuncias para esta wallet.</p>`;
+      return;
+    }
+
+    list.innerHTML = "";
+    for (const c of myCases) {
+      const card = document.createElement("div");
+      card.className = "case-card";
+      card.innerHTML = `
+        ${galleryHtml(c)}
+        <div class="body">
+          <div class="top-row">
+            <span class="plate-label">${c.plate}</span>
+            <span class="status-pill status-${c.status}">${c.status === "open" ? "Abierto" : "Recuperado"}</span>
+          </div>
+          <div class="specs">${ICONS.car} ${c.brand} ${c.model} · ${c.color}</div>
+          <div class="meta">Recompensa: ${c.reward_amount} stablecoin</div>
+          <div class="tips-list" id="tips-for-${c.case_id}"><span class="empty-msg">Cargando pistas…</span></div>
+        </div>
+      `;
+      list.appendChild(card);
+      loadTipsForCase(c);
+    }
+  }
+
+  async function loadTipsForCase(c) {
+    const container = document.getElementById(`tips-for-${c.case_id}`);
+    const res = await fetch(`${API_BASE}/cases/${c.case_id}/tips`);
+    const allTips = await res.json();
+    const pending = allTips.filter((t) => !t.paid && t.tier !== "sin_coincidencia");
+
+    if (c.status === "closed") {
+      container.innerHTML = `<span class="empty-msg">${ICONS.check} Caso cerrado — recompensas liberadas.</span>`;
+      return;
+    }
+
+    if (pending.length === 0) {
+      container.innerHTML = `<span class="empty-msg">Aún no hay pistas con evidencia suficiente.</span>`;
+      return;
+    }
+
+    let html = `<div style="font-size:13px; color:var(--text-dim); margin-bottom:6px;">Selecciona quién recuperó el vehículo para liberar las recompensas:</div>`;
+    pending.forEach((t, i) => {
+      const loc = locationLabel(t);
+      html += `
+        <div class="tip-row">
+          <label>
+            <input type="radio" name="recover-${c.case_id}" value="${t.collaborator_wallet}" ${i === 0 ? "checked" : ""} />
+            <span class="wallet">${shortWallet(t.collaborator_wallet)}</span>
+            <span class="tier-pill tier-${t.tier}">${t.tier.replace('_',' ')}</span>
+            (${(t.similarity * 100).toFixed(0)}%)
+          </label>
+          ${loc ? `<span class="tip-location">${ICONS.pin} ${loc}</span>` : ""}
+          ${tipMapHtml(t, t.tip_id)}
+        </div>
+      `;
+    });
+    html += `<button onclick="confirmRecovery('${c.case_id}')">Marcar como recuperado y liberar recompensas</button>`;
+    html += `<div class="result" id="recover-result-${c.case_id}"></div>`;
+    container.innerHTML = html;
+    initPendingTipMaps();
+  }
+
+  async function confirmRecovery(caseIdToClose) {
+    const selected = document.querySelector(`input[name="recover-${caseIdToClose}"]:checked`);
+    if (!selected) return alert("Selecciona un colaborador.");
+
+    const form = new FormData();
+    form.append("collaborator_wallet", selected.value);
+    const res = await fetch(`${API_BASE}/cases/${caseIdToClose}/confirm-recovery`, { method: "POST", body: form });
+    const data = await res.json();
+
+    const box = document.getElementById(`recover-result-${caseIdToClose}`);
+    box.style.display = "block";
+    box.classList.add("success");
+    const hashes = data.tx_hashes || [];
+    box.innerHTML = `<span class="headline">${ICONS.check} Vehículo marcado como recuperado</span>${hashes.length} pago(s) liberados on-chain.`;
+
+    loadMyCases();
+  }
+
+  // ---------- Tab 3: Autos perdidos reportados ----------
+
+  function galleryHtml(c) {
+    const count = c.photo_count || 1;
+    const uid = `gal-${c.case_id}`;
+    let dots = "";
+    for (let i = 0; i < count; i++) dots += `<span class="${i === 0 ? "active" : ""}"></span>`;
+    return `
+      <div class="gallery" id="${uid}" data-index="0" data-count="${count}" data-vehicle="${c.vehicle_id}">
+        <img src="${API_BASE}/vehicles/${c.vehicle_id}/photo?index=0" alt="${c.plate}" />
+        ${count > 1 ? `
+          <button type="button" class="nav prev" onclick="cycleGallery('${uid}', -1)">${ICONS.chevronLeft}</button>
+          <button type="button" class="nav next" onclick="cycleGallery('${uid}', 1)">${ICONS.chevronRight}</button>
+          <div class="dots">${dots}</div>
+        ` : ""}
+      </div>
+    `;
+  }
+
+  function cycleGallery(uid, dir) {
+    const el = document.getElementById(uid);
+    const count = Number(el.dataset.count);
+    let idx = (Number(el.dataset.index) + dir + count) % count;
+    el.dataset.index = idx;
+    el.querySelector("img").src = `${API_BASE}/vehicles/${el.dataset.vehicle}/photo?index=${idx}`;
+    el.querySelectorAll(".dots span").forEach((d, i) => d.classList.toggle("active", i === idx));
+  }
+
+  async function loadPublicCases() {
+    const list = document.getElementById("publicList");
+    list.innerHTML = `<p class="empty-msg">Cargando…</p>`;
+    const res = await fetch(`${API_BASE}/cases`);
+    const allCases = await res.json();
+
+    if (allCases.length === 0) {
+      list.innerHTML = `<p class="empty-msg">Todavía no hay vehículos reportados.</p>`;
+      return;
+    }
+
+    list.innerHTML = "";
+    for (const c of allCases) {
+      const card = document.createElement("div");
+      card.className = "case-card";
+      card.innerHTML = `
+        ${galleryHtml(c)}
+        <div class="body">
+          <div class="top-row">
+            <span class="plate-label">${c.plate}</span>
+            <span class="status-pill status-${c.status}">${c.status === "open" ? "Buscando" : "Recuperado"}</span>
+          </div>
+          <div class="specs">${ICONS.car} ${c.brand} ${c.model} · ${c.color}</div>
+          <div class="meta">Recompensa: ${c.reward_amount} stablecoin</div>
+          ${c.status === "open" ? `<button class="secondary small" onclick="startTipFor('${c.case_id}', '${c.plate} · ${c.brand} ${c.model}')">Subir una pista</button>` : ""}
+        </div>
+      `;
+      list.appendChild(card);
+    }
   }
 </script>
 </body>

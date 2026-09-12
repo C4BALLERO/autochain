@@ -4,6 +4,7 @@
   "description": "AutoChain — recuperación de vehículos robados con IA y recompensas en stablecoin sobre HSK Chain.",
   "scripts": {
     "compile": "hardhat compile",
+    "deploy:mock-stablecoin": "hardhat run scripts/deploy-mock-stablecoin.js --network hskTestnet",
     "deploy:hsk-testnet": "hardhat run scripts/deploy.js --network hskTestnet",
     "deploy:hsk-mainnet": "hardhat run scripts/deploy.js --network hskMainnet"
   },

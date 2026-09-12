@@ -10,8 +10,13 @@ async function main() {
   const contract = await AutoChainReward.deploy(stablecoinAddress);
   await contract.waitForDeployment();
 
+  const [deployer] = await hre.ethers.getSigners();
+  const validatorTx = await contract.asignarValidador(deployer.address, true);
+  await validatorTx.wait();
+
   console.log("AutoChainReward deployed to:", await contract.getAddress());
   console.log("Stablecoin used:", stablecoinAddress);
+  console.log("Validator whitelisted (deployer):", deployer.address);
 }
 
 main().catch((error) => {

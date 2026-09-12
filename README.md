@@ -46,7 +46,7 @@ npm run compile
 npm run deploy:hsk-testnet
 ```
 
-Copia la dirección del contrato desplegado en `.env` como `AUTOCHAIN_CONTRACT_ADDRESS`, y registra la wallet validadora con `setValidator(address, true)`.
+Copia la dirección del contrato desplegado en `.env` como `AUTOCHAIN_CONTRACT_ADDRESS`, y registra la wallet validadora con `asignarValidador(address, true)`.
 
 ### 2. Servicio de IA
 
@@ -75,7 +75,7 @@ Abre `frontend/index.html` en el navegador (o sírvelo con cualquier servidor es
 
 ## Roadmap
 
-- Reemplazar el relayer manual por un oráculo descentralizado que dispare `rewardTip` automáticamente al superar el umbral de similitud.
+- Reemplazar el relayer manual por un oráculo descentralizado que dispare `pagarRecompensaColaborador` automáticamente al superar el umbral de similitud.
 - KYC real vía proveedor externo (ej. verificación de cédula + selfie) en vez del hash de demo.
 - Mecanismo de stake para colaboradores (reduce spam/pistas falsas).
 - Integración con aseguradoras y la Policía Boliviana para verificación oficial de recuperación.

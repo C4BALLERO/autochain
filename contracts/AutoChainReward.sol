@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title AutoChainReward
 /// @notice Escrow + tiered reward contract for the AutoChain vehicle-recovery
@@ -41,10 +41,10 @@ contract AutoChainReward is Ownable, ReentrancyGuard {
     // addresses allowed to confirm AI-validated tips and trigger payouts
     mapping(address => bool) public validators;
 
-    event CaseOpened(uint256 indexed caseId, address indexed owner, uint256 totalReward);
-    event TipRewarded(uint256 indexed caseId, address indexed collaborator, RewardTier tier, uint256 amount);
-    event CaseClosed(uint256 indexed caseId, uint256 totalPaidOut);
-    event ValidatorUpdated(address indexed validator, bool allowed);
+    event CasoAbierto(uint256 indexed caseId, address indexed owner, uint256 totalReward);
+    event RecompensaPagada(uint256 indexed caseId, address indexed collaborator, RewardTier tier, uint256 amount);
+    event CasoCerrado(uint256 indexed caseId, uint256 totalPaidOut);
+    event ValidadorActualizado(address indexed validator, bool allowed);
 
     modifier onlyValidator() {
         require(validators[msg.sender], "AutoChain: not a validator");
@@ -54,27 +54,30 @@ contract AutoChainReward is Ownable, ReentrancyGuard {
     constructor(address _stablecoin) Ownable(msg.sender) {
         stablecoin = IERC20(_stablecoin);
 
-        // Default split mirrors the pitch deck's incentive table.
-        tierBps[RewardTier.PartialInfo] = 1000;  // 10%
-        tierBps[RewardTier.KeyEvidence] = 3000;  // 30%
-        tierBps[RewardTier.FullRecovery] = 6000; // remaining 60% on recovery
+        // Cumulative targets (not standalone increments): entitled = totalReward * bps / 10000,
+        // and each payout only releases the delta above what's already been paid for the case.
+        // FullRecovery must stay at 10000 (100%) or the remainder of the pool would be
+        // stranded in the contract forever once the case is marked closed.
+        tierBps[RewardTier.PartialInfo] = 1000;   // 10% cumulative
+        tierBps[RewardTier.KeyEvidence] = 3000;   // 30% cumulative
+        tierBps[RewardTier.FullRecovery] = 10000; // 100% cumulative — pays whatever remains
     }
 
-    /// @notice Vehicle owner opens a case and deposits the full reward pool.
-    function openCase(uint256 totalReward) external nonReentrant returns (uint256 caseId) {
+    /// @notice Vehicle owner reports the theft and deposits the full reward pool.
+    function reportarVehiculoRobado(uint256 totalReward) external nonReentrant returns (uint256 caseId) {
         require(totalReward > 0, "AutoChain: reward must be > 0");
         require(stablecoin.transferFrom(msg.sender, address(this), totalReward), "AutoChain: transfer failed");
 
         caseId = nextCaseId++;
         cases[caseId] = Case({owner: msg.sender, totalReward: totalReward, paidOut: 0, closed: false});
 
-        emit CaseOpened(caseId, msg.sender, totalReward);
+        emit CasoAbierto(caseId, msg.sender, totalReward);
     }
 
     /// @notice Called by a validator once the off-chain AI service confirms a
     ///         collaborator's tip at a given tier. Pays out the incremental
     ///         amount for that tier immediately.
-    function rewardTip(uint256 caseId, address collaborator, RewardTier tier) external onlyValidator nonReentrant {
+    function pagarRecompensaColaborador(uint256 caseId, address collaborator, RewardTier tier) external onlyValidator nonReentrant {
         Case storage c = cases[caseId];
         require(!c.closed, "AutoChain: case closed");
         require(tier != RewardTier.None, "AutoChain: invalid tier");
@@ -87,30 +90,30 @@ contract AutoChainReward is Ownable, ReentrancyGuard {
 
         if (tier == RewardTier.FullRecovery) {
             c.closed = true;
-            emit CaseClosed(caseId, c.paidOut);
+            emit CasoCerrado(caseId, c.paidOut);
         }
 
         require(stablecoin.transfer(collaborator, amount), "AutoChain: payout failed");
-        emit TipRewarded(caseId, collaborator, tier, amount);
+        emit RecompensaPagada(caseId, collaborator, tier, amount);
     }
 
     /// @notice Owner can reclaim any unpaid balance if a case is abandoned.
-    function cancelCase(uint256 caseId) external nonReentrant {
+    function cancelarCaso(uint256 caseId) external nonReentrant {
         Case storage c = cases[caseId];
         require(msg.sender == c.owner || msg.sender == owner(), "AutoChain: not authorized");
         require(!c.closed, "AutoChain: already closed");
 
         uint256 refund = c.totalReward - c.paidOut;
         c.closed = true;
-        emit CaseClosed(caseId, c.paidOut);
+        emit CasoCerrado(caseId, c.paidOut);
 
         if (refund > 0) {
             require(stablecoin.transfer(c.owner, refund), "AutoChain: refund failed");
         }
     }
 
-    function setValidator(address validator, bool allowed) external onlyOwner {
+    function asignarValidador(address validator, bool allowed) external onlyOwner {
         validators[validator] = allowed;
-        emit ValidatorUpdated(validator, allowed);
+        emit ValidadorActualizado(validator, allowed);
     }
 }

@@ -31,9 +31,9 @@
 ## Componentes clave
 
 ### Contrato `AutoChainReward.sol`
-- Custodia el stablecoin de cada caso (`openCase`).
-- Libera pagos incrementales por tier (`rewardTip`), evitando doble pago del mismo nivel.
-- Permite reembolso al propietario si el caso se cancela (`cancelCase`).
+- Custodia el stablecoin de cada caso (`reportarVehiculoRobado`).
+- Libera pagos incrementales por tier (`pagarRecompensaColaborador`), evitando doble pago del mismo nivel.
+- Permite reembolso al propietario si el caso se cancela (`cancelarCaso`).
 - Rol de `validator` (whitelisteado por el owner) es quien confirma tiers on-chain — puesto que la validación de IA hoy corre off-chain.
 
 ### Servicio de IA (`ai_matching_service.py`)

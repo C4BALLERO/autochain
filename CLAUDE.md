@@ -52,7 +52,7 @@ autochain/
 ### Decisiones de arquitectura ya tomadas (no las re-abras sin razón)
 
 - **On-chain vs off-chain**: solo hashes/estado de caso van on-chain. Fotos, datos KYC y evidencia viven off-chain. Esto es una decisión deliberada de privacidad, no un descuido.
-- **Validación de IA off-chain**: el resultado (tier) se relaya on-chain por una wallet `validator` whitelisteada en el contrato (`setValidator`). El roadmap contempla reemplazarla por un oráculo descentralizado — no lo construyas ahora, no hay tiempo y no es crítico para el demo.
+- **Validación de IA off-chain**: el resultado (tier) se relaya on-chain por una wallet `validator` whitelisteada en el contrato (`asignarValidador`). El roadmap contempla reemplazarla por un oráculo descentralizado — no lo construyas ahora, no hay tiempo y no es crítico para el demo.
 - **Tiers de recompensa**: Información Útil (10%), Evidencia Clave (30%), Recuperación Efectiva (60% restante, confirmación manual — nunca decidida por IA, porque implica verificación física).
 - **Stablecoin**: cualquier ERC-20 en HSK Chain (mock USDT/USDC en testnet está bien para el demo).
 - **IA de matching**: `open_clip` preentrenado (ViT-B-32), sin entrenamiento propio. Umbrales: ≥0.90 evidencia clave, ≥0.75 información útil, <0.75 sin coincidencia.
