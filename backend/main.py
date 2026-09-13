@@ -29,7 +29,10 @@ import db
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:8001/match")
+AI_SERVICE_URL = os.getenv("AI_SERVICE_URL")  # optional: local ai_matching_service.py for dev
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")  # Hugging Face Inference API token (production AI matching)
+HF_CLIP_MODEL = os.getenv("HF_CLIP_MODEL", "openai/clip-vit-base-patch32")
+HF_INFERENCE_URL = f"https://router.huggingface.co/hf-inference/models/{HF_CLIP_MODEL}"
 RPC_URL = os.getenv("HSK_RPC_URL", "https://rpc-testnet.hskchain.net")
 CONTRACT_ADDRESS = os.getenv("AUTOCHAIN_CONTRACT_ADDRESS")
 VALIDATOR_PRIVATE_KEY = os.getenv("VALIDATOR_PRIVATE_KEY")
@@ -47,6 +50,46 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _tier_from_score(score: float) -> str:
+    # Same thresholds as ai_matching_service.py, so local dev (AI_SERVICE_URL)
+    # and production (Hugging Face) grade tips identically.
+    if score >= 0.90:
+        return "evidencia_clave"
+    if score >= 0.75:
+        return "informacion_util"
+    return "sin_coincidencia"
+
+
+def _flatten_embedding(data):
+    # Hugging Face's image-feature-extraction task returns either a pooled
+    # vector (list[float]) or unpooled patch-level features (nested lists)
+    # depending on the model; mean-pool any extra leading dimension until a
+    # single flat vector is left.
+    while isinstance(data, list) and data and isinstance(data[0], list):
+        data = [sum(col) / len(data) for col in zip(*data)]
+    return data
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(y * y for y in b) ** 0.5
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+async def _hf_image_embedding(client: httpx.AsyncClient, image_bytes: bytes) -> list[float]:
+    response = await client.post(
+        HF_INFERENCE_URL,
+        headers={"Authorization": f"Bearer {HF_API_TOKEN}"},
+        content=image_bytes,
+        timeout=30.0,
+    )
+    response.raise_for_status()
+    return _flatten_embedding(response.json())
 
 
 class TheftReport(BaseModel):
@@ -266,25 +309,44 @@ async def submit_tip(
     ai_unavailable = False
     try:
         async with httpx.AsyncClient() as client:
-            for index in range(vehicle["photo_count"]):
-                ref_url = db.vehicle_photo_public_url(vehicle["id"], index)
-                ref_resp = await client.get(ref_url, timeout=30.0)
-                ref_resp.raise_for_status()
+            if AI_SERVICE_URL:
+                # Local dev override: the standalone ai_matching_service.py
+                # (open_clip running on this machine) instead of Hugging Face.
+                for index in range(vehicle["photo_count"]):
+                    ref_url = db.vehicle_photo_public_url(vehicle["id"], index)
+                    ref_resp = await client.get(ref_url, timeout=30.0)
+                    ref_resp.raise_for_status()
+                    for tip_bytes in tip_photo_bytes:
+                        files = {
+                            "reference_photo": ("reference.jpg", ref_resp.content, "image/jpeg"),
+                            "tip_photo": ("tip.jpg", tip_bytes, "image/jpeg"),
+                        }
+                        response = await client.post(AI_SERVICE_URL, files=files, timeout=30.0)
+                        response.raise_for_status()
+                        result = response.json()
+                        if result["similarity"] > best_result["similarity"]:
+                            best_result = result
+            elif HF_API_TOKEN:
+                # Production: Hugging Face's hosted Inference API computes the
+                # CLIP embeddings, so no separate model server has to be deployed.
+                ref_embeddings = []
+                for index in range(vehicle["photo_count"]):
+                    ref_url = db.vehicle_photo_public_url(vehicle["id"], index)
+                    ref_resp = await client.get(ref_url, timeout=30.0)
+                    ref_resp.raise_for_status()
+                    ref_embeddings.append(await _hf_image_embedding(client, ref_resp.content))
                 for tip_bytes in tip_photo_bytes:
-                    files = {
-                        "reference_photo": ("reference.jpg", ref_resp.content, "image/jpeg"),
-                        "tip_photo": ("tip.jpg", tip_bytes, "image/jpeg"),
-                    }
-                    response = await client.post(AI_SERVICE_URL, files=files, timeout=30.0)
-                    response.raise_for_status()
-                    result = response.json()
-                    if result["similarity"] > best_result["similarity"]:
-                        best_result = result
+                    tip_embedding = await _hf_image_embedding(client, tip_bytes)
+                    for ref_embedding in ref_embeddings:
+                        similarity = _cosine_similarity(ref_embedding, tip_embedding)
+                        if similarity > best_result["similarity"]:
+                            best_result = {"similarity": similarity, "tier": _tier_from_score(similarity)}
+            else:
+                ai_unavailable = True
     except httpx.HTTPError:
-        # The AI matching microservice isn't reachable from this deployment
-        # (e.g. it only runs locally for now, not alongside this API in
-        # production). Record the tip anyway instead of failing the whole
-        # submission — it just can't be auto-scored until AI is reachable.
+        # The AI matching backend isn't reachable (network issue, HF rate
+        # limit, misconfigured token, etc). Record the tip anyway instead of
+        # failing the whole submission — it just can't be auto-scored yet.
         ai_unavailable = True
 
     # Tips are scored immediately but NOT paid here: the reward only gets

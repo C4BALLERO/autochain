@@ -10,7 +10,7 @@ Bolivia registra ~3,500 denuncias de robo vehicular al año, y el 64% de esos ve
 - Frontend: https://autochain-hsk.vercel.app
 - API (Supabase en producción): https://autochain-hsk-api.vercel.app
 
-El servicio de IA (CLIP) no está desplegado en producción — sus dependencias (torch/CLIP, ~350MB) no caben en el límite de una función serverless de Vercel. En producción, el registro/reporte/consulta de casos funciona contra la base de datos real; la validación automática de pistas por IA solo corre localmente por ahora (ver roadmap).
+La validación de IA (CLIP) también funciona en producción: en vez de desplegar un servidor propio con torch/CLIP (~350MB, no cabe en el límite de una función serverless de Vercel), la API llama al **Inference API gratuito de Hugging Face** para obtener los embeddings de imagen y calcula la similitud coseno localmente. Para desarrollo local con más control (o sin depender de un servicio externo) se puede seguir usando `ai_matching_service.py` (open_clip) definiendo `AI_SERVICE_URL`.
 
 ## Cómo funciona
 
@@ -61,7 +61,11 @@ Copia la dirección del contrato desplegado en `.env` como `AUTOCHAIN_CONTRACT_A
 3. En **Project Settings → API**, copia el **Project URL** y la **secret key** a `.env` como `SUPABASE_URL` y `SUPABASE_SECRET_KEY`.
 4. Los buckets de almacenamiento (`vehicle-photos` público, `ownership-documents` privado) se crean automáticamente la primera vez que corre el backend.
 
-### 3. Servicio de IA
+### 3. Validación de IA (matching de imágenes)
+
+Por defecto, `backend/main.py` llama al Inference API de Hugging Face (gratis) para comparar la foto de la pista contra la foto de referencia — no hace falta correr nada aparte. Solo crea un token en https://huggingface.co/settings/tokens (con el permiso **"Make calls to Inference Providers"** activado) y ponlo en `.env` como `HF_API_TOKEN`.
+
+Si prefieres correr el modelo tú mismo en local (por ejemplo, sin depender de un servicio externo):
 
 ```bash
 cd backend
@@ -69,7 +73,7 @@ pip install -r requirements.txt -r requirements-ai.txt
 uvicorn ai_matching_service:app --reload --port 8001
 ```
 
-(`requirements-ai.txt` trae torch/CLIP, separado del resto porque la API principal —y su despliegue en Vercel— no los necesita.)
+y define `AI_SERVICE_URL=http://localhost:8001/match` en `.env` para que `main.py` lo use en vez de Hugging Face. (`requirements-ai.txt` trae torch/CLIP, separado del resto porque la API principal —y su despliegue en Vercel— no los necesita.)
 
 ### 4. API principal
 
@@ -91,7 +95,7 @@ cd frontend && vercel deploy --prod   # sitio estático + cabeceras de seguridad
 cd backend  && vercel deploy --prod   # API FastAPI como función serverless (backend/api/index.py)
 ```
 
-En el proyecto del backend, configura como variables de entorno de producción: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `AUTOCHAIN_CONTRACT_ADDRESS`, `VALIDATOR_PRIVATE_KEY`, `STABLECOIN_ADDRESS`, `HSK_RPC_URL` (con `vercel env add <NOMBRE> production`). El microservicio de IA no se despliega ahí — ver nota arriba.
+En el proyecto del backend, configura como variables de entorno de producción: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `AUTOCHAIN_CONTRACT_ADDRESS`, `VALIDATOR_PRIVATE_KEY`, `STABLECOIN_ADDRESS`, `HSK_RPC_URL`, `HF_API_TOKEN` (con `vercel env add <NOMBRE> production`). No hace falta desplegar ningún servidor de IA aparte — ver nota arriba.
 
 ## Enfoque de integración técnica
 
