@@ -36,10 +36,10 @@
 - Permite reembolso al propietario si el caso se cancela (`cancelarCaso`).
 - Rol de `validator` (whitelisteado por el owner) es quien confirma tiers on-chain — puesto que la validación de IA hoy corre off-chain.
 
-### Servicio de IA (`ai_matching_service.py`)
-- Usa `open_clip` (ViT-B-32, pesos `openai`) para generar embeddings de imagen.
-- Similitud coseno entre la foto de referencia del vehículo y la foto de la pista.
-- Umbrales: `>=0.90` evidencia clave, `>=0.75` información útil, `<0.75` sin coincidencia.
+### Comparación de imágenes
+- **En producción hoy** (`backend/image_similarity.py`): hash perceptual (estructura/forma) + histograma de color RGB, combinados — corre en el mismo backend, sin servicio ni dependencias pesadas.
+- **CLIP** (`ai_matching_service.py`, `open_clip` ViT-B-32): más preciso para reconocer el mismo auto desde ángulos distintos; probado y funcional en local, pendiente de desplegar aparte (torch no cabe en el límite serverless de Vercel).
+- Ambos usan los mismos umbrales: `>=0.90` evidencia clave, `>=0.75` información útil, `<0.75` sin coincidencia.
 - La "recuperación efectiva" (tier máximo) se confirma manualmente por un operador — no es una decisión de IA, ya que implica verificación física del vehículo.
 
 ### Backend (`main.py`)
@@ -72,4 +72,4 @@
 - **Faucet testnet**: https://hskchain.net/faucet
 - Dirección del contrato desplegado: `0x0C8dA3431EDF2Fe388577F90655D77b0feC49b0e` (verificado en Blockscout).
 - Frontend: https://autochain-hsk.vercel.app — API: https://autochain-hsk-api.vercel.app
-- **Estado del servicio de IA (CLIP)**: probado y funcional en local (`ai_matching_service.py`); aún no desplegado en producción por el límite de tamaño de las funciones serverless de Vercel (ver README). En producción, las pistas se registran igual pero quedan marcadas `ai_unavailable: true` hasta que ese servicio esté en línea.
+- **Estado del servicio de IA**: en producción, `backend/main.py` compara imágenes con un método liviano propio (`image_similarity.py`: hash perceptual + histograma de color), ya que torch/CLIP no cabe en el límite de una función serverless de Vercel. El servicio CLIP real (`ai_matching_service.py`) está probado y funcional en local, y el código ya soporta apuntar a él (`AI_SERVICE_URL`) o a Hugging Face (`HF_API_TOKEN`) en cuanto alguno esté desplegado — ver README.

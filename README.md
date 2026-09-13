@@ -10,7 +10,7 @@ Bolivia registra ~3,500 denuncias de robo vehicular al año, y el 64% de esos ve
 - Frontend: https://autochain-hsk.vercel.app
 - API (Supabase en producción): https://autochain-hsk-api.vercel.app
 
-La validación de IA (CLIP) **no está activa en producción todavía**: torch/CLIP (~350MB) no cabe en el límite de una función serverless de Vercel, así que necesita un servicio aparte. El código ya soporta apuntar a uno vía `AI_SERVICE_URL` o `HF_API_TOKEN` (ver `backend/main.py`), pero ese servicio externo aún no quedó desplegado — se probó localmente (`ai_matching_service.py`, con métricas y umbrales reales) y ese es el video/demo de respaldo. En producción, cada pista se registra igual, pero queda marcada como `ai_unavailable: true` hasta que el servicio de IA esté en línea.
+La validación de imágenes **sí funciona en producción**, pero no con CLIP: torch/CLIP (~350MB) no cabe en el límite de una función serverless de Vercel, así que por defecto la API usa una comparación liviana (hash perceptual + histograma de color, `backend/image_similarity.py`) que corre en el mismo backend, sin servicio aparte. Da un porcentaje real, pero es menos preciso que CLIP para reconocer el mismo auto desde ángulos distintos. El código sigue soportando apuntar a un servicio CLIP real vía `AI_SERVICE_URL` (local, `ai_matching_service.py`) o `HF_API_TOKEN` — cuando alguno está configurado, se usa en vez del fallback liviano.
 
 ## Cómo funciona
 

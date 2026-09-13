@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from web3 import Web3
 
 import db
+import image_similarity
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -401,7 +402,18 @@ async def submit_tip(
                         if similarity > best_result["similarity"]:
                             best_result = {"similarity": similarity, "tier": _tier_from_score(similarity)}
             else:
-                ai_unavailable = True
+                # No external AI service configured (the common case today —
+                # see README): fall back to a lightweight, dependency-free
+                # comparison that runs right here, so tips still get a real
+                # score instead of none at all. See image_similarity.py.
+                for index in range(vehicle["photo_count"]):
+                    ref_url = db.vehicle_photo_public_url(vehicle["id"], index)
+                    ref_resp = await client.get(ref_url, timeout=30.0)
+                    ref_resp.raise_for_status()
+                    for tip_bytes in tip_photo_bytes:
+                        similarity = image_similarity.compute_similarity(ref_resp.content, tip_bytes)
+                        if similarity > best_result["similarity"]:
+                            best_result = {"similarity": similarity, "tier": _tier_from_score(similarity)}
     except httpx.HTTPError:
         # The AI matching backend isn't reachable (network issue, HF rate
         # limit, misconfigured token, etc). Record the tip anyway instead of
