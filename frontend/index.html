@@ -646,6 +646,10 @@
       <input type="text" id="ownerName" placeholder="Juan Pérez" />
       <label>Tu wallet (para gestionar tu denuncia y recibir/confirmar recompensas)</label>
       <input type="text" id="ownerWallet" placeholder="0xabc..." />
+
+      <label>Foto de tu cédula de identidad (verificación KYC — nunca se muestra públicamente)</label>
+      <input type="file" id="ownerIdPhoto" accept="image/*" capture="environment" onchange="previewFiles(this, 'previewIdPhoto')" />
+      <div class="photo-gallery" id="previewIdPhoto"></div>
       <label>Placa</label>
       <input type="text" id="plate" placeholder="7733 FGW" />
 
@@ -1229,13 +1233,15 @@
     const description = document.getElementById("description").value;
     const files = document.getElementById("referencePhotos").files;
     const ownershipDoc = document.getElementById("ownershipDocument").files[0];
-    if (!ownerName || !ownerWallet || !plate || !brand || !model || !color || !year || !ruatNumber || files.length === 0 || !ownershipDoc) {
-      return alert("Completa todos los campos, sube al menos una foto y el documento de compra-venta.");
+    const ownerIdPhoto = document.getElementById("ownerIdPhoto").files[0];
+    if (!ownerName || !ownerWallet || !plate || !brand || !model || !color || !year || !ruatNumber || files.length === 0 || !ownershipDoc || !ownerIdPhoto) {
+      return alert("Completa todos los campos, sube al menos una foto, el documento de compra-venta y la foto de tu cédula.");
     }
 
     const form = new FormData();
     Array.from(files).forEach((f) => form.append("reference_photos", f));
     form.append("ownership_document", ownershipDoc);
+    form.append("owner_id_photo", ownerIdPhoto);
 
     const params = new URLSearchParams({
       owner_name: ownerName, plate, doc_id_hash: "demo-hash", owner_wallet: ownerWallet,

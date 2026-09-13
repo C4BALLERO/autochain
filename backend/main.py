@@ -114,6 +114,7 @@ async def register_vehicle(
     description: Optional[str] = None,  # free-text distinctive characteristics
     reference_photos: list[UploadFile] = File(...),
     ownership_document: UploadFile = File(...),  # documento de compra-venta / proof of ownership
+    owner_id_photo: UploadFile = File(...),  # foto de la cédula/credencial del propietario (KYC)
 ):
     # Videos are accepted here so the frontend can preview them alongside
     # photos before submitting, but only static images get persisted/matched
@@ -127,6 +128,10 @@ async def register_vehicle(
     if not photo_bytes:
         raise HTTPException(status_code=400, detail="Sube al menos una foto (los videos no se guardan todavía, solo se previsualizan).")
     ownership_doc_bytes = await ownership_document.read()
+
+    if not (owner_id_photo.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="La credencial debe ser una foto (imagen), no un video ni un documento.")
+    owner_id_photo_bytes = await owner_id_photo.read()
 
     vehicle = db.insert_vehicle({
         "owner_name": owner_name,
@@ -150,6 +155,7 @@ async def register_vehicle(
         ownership_document.content_type or "application/octet-stream",
         ownership_document.filename or "document",
     )
+    db.upload_owner_id_photo(vehicle_id, owner_id_photo_bytes, owner_id_photo.content_type or "image/jpeg")
 
     return {"vehicle_id": vehicle_id, "photo_count": len(photo_bytes)}
 
@@ -195,6 +201,21 @@ async def get_ownership_document(vehicle_id: str):
     content, filename = result
     content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
     return Response(content=content, media_type=content_type)
+
+
+@app.get("/vehicles/{vehicle_id}/owner-id-photo")
+async def get_owner_id_photo(vehicle_id: str):
+    """Same privacy treatment as the ownership document: a KYC photo of the
+    owner's ID card, kept in a private Storage bucket, only for the
+    validator/owner to review during a manual recovery confirmation — never
+    linked from the public board."""
+    vehicle = db.get_vehicle(vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="vehicle not found")
+    content = db.download_owner_id_photo(vehicle_id)
+    if content is None:
+        raise HTTPException(status_code=404, detail="id photo not found")
+    return Response(content=content, media_type="image/jpeg")
 
 
 @app.post("/cases/report-theft")

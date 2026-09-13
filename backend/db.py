@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
+from storage3.exceptions import StorageApiError
 from supabase import create_client
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -20,16 +21,30 @@ SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY")
 
 VEHICLE_PHOTOS_BUCKET = "vehicle-photos"
 OWNERSHIP_DOCS_BUCKET = "ownership-documents"
+OWNER_ID_PHOTOS_BUCKET = "owner-id-photos"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY) if SUPABASE_URL and SUPABASE_SECRET_KEY else None
+
+
+def _create_bucket_if_missing(name: str, public: bool) -> None:
+    try:
+        supabase.storage.create_bucket(name, options={"public": public})
+    except StorageApiError as e:
+        # Supabase's storage API can 409 here even when list_buckets() didn't
+        # show the bucket yet (listing lags behind a just-created bucket) —
+        # either way, the bucket existing is exactly what we want.
+        if str(e.status) != "409":
+            raise
 
 
 def _ensure_buckets() -> None:
     existing = {b.name for b in supabase.storage.list_buckets()}
     if VEHICLE_PHOTOS_BUCKET not in existing:
-        supabase.storage.create_bucket(VEHICLE_PHOTOS_BUCKET, options={"public": True})
+        _create_bucket_if_missing(VEHICLE_PHOTOS_BUCKET, public=True)
     if OWNERSHIP_DOCS_BUCKET not in existing:
-        supabase.storage.create_bucket(OWNERSHIP_DOCS_BUCKET, options={"public": False})
+        _create_bucket_if_missing(OWNERSHIP_DOCS_BUCKET, public=False)
+    if OWNER_ID_PHOTOS_BUCKET not in existing:
+        _create_bucket_if_missing(OWNER_ID_PHOTOS_BUCKET, public=False)
 
 
 if supabase:
@@ -79,6 +94,23 @@ def download_ownership_document(vehicle_id: str) -> Optional[tuple[bytes, str]]:
     filename = files[0]["name"]
     content = supabase.storage.from_(OWNERSHIP_DOCS_BUCKET).download(f"{vehicle_id}/{filename}")
     return content, filename
+
+
+def upload_owner_id_photo(vehicle_id: str, content: bytes, content_type: str) -> None:
+    # KYC selfie of the owner's ID card/credential — private bucket, same
+    # treatment as the ownership document (never linked from the public board).
+    path = f"{vehicle_id}/id_photo.jpg"
+    supabase.storage.from_(OWNER_ID_PHOTOS_BUCKET).upload(
+        path, content, file_options={"content-type": content_type, "upsert": "true"}
+    )
+
+
+def download_owner_id_photo(vehicle_id: str) -> Optional[bytes]:
+    files = supabase.storage.from_(OWNER_ID_PHOTOS_BUCKET).list(vehicle_id)
+    if not files:
+        return None
+    filename = files[0]["name"]
+    return supabase.storage.from_(OWNER_ID_PHOTOS_BUCKET).download(f"{vehicle_id}/{filename}")
 
 
 # --- cases -------------------------------------------------------------------
