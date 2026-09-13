@@ -632,6 +632,30 @@
           <span class="choice-title">Reportar como robado</span>
           <span class="choice-desc">Registra el vehículo (si aún no lo hiciste) y abre un caso con recompensa.</span>
         </button>
+        <button type="button" class="choice-card" onclick="startKyc()" id="btn-choice-kyc">
+          <span class="choice-icon" id="choice-icon-kyc"></span>
+          <span class="choice-title">Verificar tu identidad</span>
+          <span class="choice-desc">Registra tu wallet con una foto de tu cédula (KYC). Se hace una sola vez.</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- KYC: standalone identity verification, independent from vehicle registration -->
+    <div id="kycFlow" style="display:none;">
+      <button type="button" class="secondary small" onclick="backToChoice()" id="btn-back-choice-kyc"></button>
+      <div class="stage active" id="stage-kyc">
+        <h2>Verifica tu identidad</h2>
+        <p class="desc">Un solo registro por wallet — luego puedes registrar o reportar cualquier cantidad de vehículos sin repetir este paso.</p>
+        <label>Tu wallet (HSK Chain)</label>
+        <input type="text" id="kycWallet" placeholder="0xabc..." />
+        <label>Nombre completo</label>
+        <input type="text" id="kycName" placeholder="Juan Pérez" />
+        <label>Foto de tu cédula de identidad (verificación KYC — nunca se muestra públicamente)</label>
+        <input type="file" id="kycIdPhoto" accept="image/*" capture="environment" onchange="previewFiles(this, 'previewKycPhoto')" />
+        <div class="photo-gallery" id="previewKycPhoto"></div>
+        <br/>
+        <button onclick="registerUser()">Verificar identidad</button>
+        <div class="result" id="result-kyc"></div>
       </div>
     </div>
 
@@ -646,10 +670,6 @@
       <input type="text" id="ownerName" placeholder="Juan Pérez" />
       <label>Tu wallet (para gestionar tu denuncia y recibir/confirmar recompensas)</label>
       <input type="text" id="ownerWallet" placeholder="0xabc..." />
-
-      <label>Foto de tu cédula de identidad (verificación KYC — nunca se muestra públicamente)</label>
-      <input type="file" id="ownerIdPhoto" accept="image/*" capture="environment" onchange="previewFiles(this, 'previewIdPhoto')" />
-      <div class="photo-gallery" id="previewIdPhoto"></div>
       <label>Placa</label>
       <input type="text" id="plate" placeholder="7733 FGW" />
 
@@ -869,7 +889,9 @@
   document.getElementById("navlink-about").innerHTML = ICONS.info + " Sobre nosotros";
   document.getElementById("choice-icon-register").innerHTML = ICONS.car;
   document.getElementById("choice-icon-theft").innerHTML = ICONS.alert;
+  document.getElementById("choice-icon-kyc").innerHTML = ICONS.check;
   document.getElementById("btn-back-choice").innerHTML = ICONS.chevronLeft + " Elegir otra opción";
+  document.getElementById("btn-back-choice-kyc").innerHTML = ICONS.chevronLeft + " Elegir otra opción";
   document.getElementById("social-github").innerHTML = ICONS.github;
   document.getElementById("social-x").innerHTML = ICONS.x;
   document.getElementById("social-instagram").innerHTML = ICONS.instagram;
@@ -1217,8 +1239,39 @@
 
   function backToChoice() {
     document.getElementById("reportFlow").style.display = "none";
+    document.getElementById("kycFlow").style.display = "none";
     document.getElementById("reportChoice").style.display = "block";
     document.getElementById("reportChoice").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function startKyc() {
+    document.getElementById("reportChoice").style.display = "none";
+    document.getElementById("kycFlow").style.display = "block";
+    document.getElementById("kycFlow").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function registerUser() {
+    const ownerWallet = document.getElementById("kycWallet").value;
+    const ownerName = document.getElementById("kycName").value;
+    const idPhoto = document.getElementById("kycIdPhoto").files[0];
+    if (!ownerWallet || !ownerName || !idPhoto) {
+      return alert("Completa la wallet, el nombre y sube la foto de tu cédula.");
+    }
+
+    const form = new FormData();
+    form.append("id_photo", idPhoto);
+    const params = new URLSearchParams({ owner_wallet: ownerWallet, owner_name: ownerName });
+    const res = await fetch(`${API_BASE}/users/register?${params}`, { method: "POST", body: form });
+    const box = document.getElementById("result-kyc");
+    box.style.display = "block";
+    if (!res.ok) {
+      box.classList.remove("success");
+      box.innerHTML = `${ICONS.check} No se pudo verificar tu identidad. Revisa los datos e intenta de nuevo.`;
+      return;
+    }
+    localStorage.setItem("autochain_owner_wallet", ownerWallet);
+    box.classList.add("success");
+    box.innerHTML = `<span class="headline">${ICONS.check} Identidad verificada</span>Ya puedes registrar o reportar vehículos con esta wallet.`;
   }
 
   async function registerVehicle() {
@@ -1233,15 +1286,13 @@
     const description = document.getElementById("description").value;
     const files = document.getElementById("referencePhotos").files;
     const ownershipDoc = document.getElementById("ownershipDocument").files[0];
-    const ownerIdPhoto = document.getElementById("ownerIdPhoto").files[0];
-    if (!ownerName || !ownerWallet || !plate || !brand || !model || !color || !year || !ruatNumber || files.length === 0 || !ownershipDoc || !ownerIdPhoto) {
-      return alert("Completa todos los campos, sube al menos una foto, el documento de compra-venta y la foto de tu cédula.");
+    if (!ownerName || !ownerWallet || !plate || !brand || !model || !color || !year || !ruatNumber || files.length === 0 || !ownershipDoc) {
+      return alert("Completa todos los campos, sube al menos una foto y el documento de compra-venta.");
     }
 
     const form = new FormData();
     Array.from(files).forEach((f) => form.append("reference_photos", f));
     form.append("ownership_document", ownershipDoc);
-    form.append("owner_id_photo", ownerIdPhoto);
 
     const params = new URLSearchParams({
       owner_name: ownerName, plate, doc_id_hash: "demo-hash", owner_wallet: ownerWallet,

@@ -96,21 +96,35 @@ def download_ownership_document(vehicle_id: str) -> Optional[tuple[bytes, str]]:
     return content, filename
 
 
-def upload_owner_id_photo(vehicle_id: str, content: bytes, content_type: str) -> None:
-    # KYC selfie of the owner's ID card/credential — private bucket, same
-    # treatment as the ownership document (never linked from the public board).
-    path = f"{vehicle_id}/id_photo.jpg"
+def upload_owner_id_photo(owner_wallet: str, content: bytes, content_type: str) -> None:
+    # KYC selfie of the owner's ID card/credential — keyed by wallet (one per
+    # person, done once), not by vehicle. Private bucket, same treatment as
+    # the ownership document (never linked from the public board).
+    path = f"{owner_wallet.lower()}/id_photo.jpg"
     supabase.storage.from_(OWNER_ID_PHOTOS_BUCKET).upload(
         path, content, file_options={"content-type": content_type, "upsert": "true"}
     )
 
 
-def download_owner_id_photo(vehicle_id: str) -> Optional[bytes]:
-    files = supabase.storage.from_(OWNER_ID_PHOTOS_BUCKET).list(vehicle_id)
+def download_owner_id_photo(owner_wallet: str) -> Optional[bytes]:
+    files = supabase.storage.from_(OWNER_ID_PHOTOS_BUCKET).list(owner_wallet.lower())
     if not files:
         return None
     filename = files[0]["name"]
-    return supabase.storage.from_(OWNER_ID_PHOTOS_BUCKET).download(f"{vehicle_id}/{filename}")
+    return supabase.storage.from_(OWNER_ID_PHOTOS_BUCKET).download(f"{owner_wallet.lower()}/{filename}")
+
+
+# --- users (standalone KYC, independent from vehicles) ------------------------
+
+def upsert_user(fields: dict) -> dict:
+    fields = {**fields, "owner_wallet": fields["owner_wallet"].lower()}
+    res = supabase.table("users").upsert(fields, on_conflict="owner_wallet").execute()
+    return res.data[0]
+
+
+def get_user(owner_wallet: str) -> Optional[dict]:
+    res = supabase.table("users").select("*").eq("owner_wallet", owner_wallet.lower()).execute()
+    return res.data[0] if res.data else None
 
 
 # --- cases -------------------------------------------------------------------

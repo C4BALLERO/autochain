@@ -14,7 +14,8 @@ La validación de IA (CLIP) también funciona en producción: en vez de desplega
 
 ## Cómo funciona
 
-1. **Reporta** — el propietario registra su vehículo (verificación KYC simplificada + foto de referencia).
+0. **Verifica tu identidad (KYC)** — paso independiente y único por wallet: nombre + foto de la cédula. Se hace una sola vez y habilita registrar/reportar cualquier cantidad de vehículos después.
+1. **Reporta** — el propietario registra su vehículo (foto de referencia + datos del auto).
 2. **Publica** — al reportar el robo, se abre un caso y se bloquea la recompensa en stablecoin dentro del contrato.
 3. **Colabora** — cualquier persona sube fotos/pistas del vehículo en tiempo real.
 4. **Valida** — un servicio de IA (embeddings CLIP) compara la foto de la pista contra la foto de referencia y asigna un nivel de evidencia.
@@ -57,9 +58,9 @@ Copia la dirección del contrato desplegado en `.env` como `AUTOCHAIN_CONTRACT_A
 ### 2. Base de datos (Supabase, gratis)
 
 1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, corre `backend/supabase_schema.sql` (crea las tablas `vehicles`, `cases`, `tips`).
+2. En **SQL Editor**, corre `backend/supabase_schema.sql` (crea las tablas `users`, `vehicles`, `cases`, `tips`).
 3. En **Project Settings → API**, copia el **Project URL** y la **secret key** a `.env` como `SUPABASE_URL` y `SUPABASE_SECRET_KEY`.
-4. Los buckets de almacenamiento (`vehicle-photos` público, `ownership-documents` privado) se crean automáticamente la primera vez que corre el backend.
+4. Los buckets de almacenamiento (`vehicle-photos` público, `ownership-documents` y `owner-id-photos` privados) se crean automáticamente la primera vez que corre el backend.
 
 ### 3. Validación de IA (matching de imágenes)
 
@@ -106,7 +107,7 @@ En el proyecto del backend, configura como variables de entorno de producción: 
 ## Roadmap
 
 - Reemplazar el relayer manual por un oráculo descentralizado que dispare `pagarRecompensaColaborador` automáticamente al superar el umbral de similitud.
-- KYC real vía proveedor externo (ej. verificación de cédula + selfie) en vez del hash de demo.
+- Verificación automática de la cédula subida en el KYC (hoy solo se guarda para revisión manual del validador) vía un proveedor externo de identidad.
 - Mecanismo de stake para colaboradores (reduce spam/pistas falsas).
 - Integración con aseguradoras y la Policía Boliviana para verificación oficial de recuperación.
 - Expansión a otros países de la región con altos índices de robo vehicular.

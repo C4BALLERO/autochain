@@ -3,6 +3,15 @@
 
 create extension if not exists pgcrypto;
 
+-- Standalone KYC: a person verifies their identity once (wallet + ID photo,
+-- the photo itself lives in the private owner-id-photos Storage bucket), then
+-- can register any number of vehicles under that same wallet.
+create table if not exists users (
+  owner_wallet text primary key,
+  owner_name text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists vehicles (
   id uuid primary key default gen_random_uuid(),
   owner_name text not null,
