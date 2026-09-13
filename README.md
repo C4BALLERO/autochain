@@ -10,7 +10,7 @@ Bolivia registra ~3,500 denuncias de robo vehicular al año, y el 64% de esos ve
 - Frontend: https://autochain-hsk.vercel.app
 - API (Supabase en producción): https://autochain-hsk-api.vercel.app
 
-La validación de IA (CLIP) también funciona en producción: en vez de desplegar un servidor propio con torch/CLIP (~350MB, no cabe en el límite de una función serverless de Vercel), la API llama al **Inference API gratuito de Hugging Face** para obtener los embeddings de imagen y calcula la similitud coseno localmente. Para desarrollo local con más control (o sin depender de un servicio externo) se puede seguir usando `ai_matching_service.py` (open_clip) definiendo `AI_SERVICE_URL`.
+La validación de IA (CLIP) **no está activa en producción todavía**: torch/CLIP (~350MB) no cabe en el límite de una función serverless de Vercel, así que necesita un servicio aparte. El código ya soporta apuntar a uno vía `AI_SERVICE_URL` o `HF_API_TOKEN` (ver `backend/main.py`), pero ese servicio externo aún no quedó desplegado — se probó localmente (`ai_matching_service.py`, con métricas y umbrales reales) y ese es el video/demo de respaldo. En producción, cada pista se registra igual, pero queda marcada como `ai_unavailable: true` hasta que el servicio de IA esté en línea.
 
 ## Cómo funciona
 
@@ -96,7 +96,7 @@ cd frontend && vercel deploy --prod   # sitio estático + cabeceras de seguridad
 cd backend  && vercel deploy --prod   # API FastAPI como función serverless (backend/api/index.py)
 ```
 
-En el proyecto del backend, configura como variables de entorno de producción: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `AUTOCHAIN_CONTRACT_ADDRESS`, `VALIDATOR_PRIVATE_KEY`, `STABLECOIN_ADDRESS`, `HSK_RPC_URL`, `HF_API_TOKEN` (con `vercel env add <NOMBRE> production`). No hace falta desplegar ningún servidor de IA aparte — ver nota arriba.
+En el proyecto del backend, configura como variables de entorno de producción: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `AUTOCHAIN_CONTRACT_ADDRESS`, `VALIDATOR_PRIVATE_KEY`, `STABLECOIN_ADDRESS`, `HSK_RPC_URL` (con `vercel env add <NOMBRE> production`). Agrega `AI_SERVICE_URL` o `HF_API_TOKEN` una vez que el servicio de IA esté desplegado (ver nota arriba) — sin eso, el backend sigue funcionando pero no puntúa pistas automáticamente.
 
 ## Enfoque de integración técnica
 

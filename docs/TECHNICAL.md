@@ -48,9 +48,9 @@
 
 ## Seguridad y privacidad (KYC)
 
-- El documento de identidad **nunca se envía en claro**: el backend recibe/almacena un hash (`doc_id_hash`).
-- Las fotos de referencia y de pistas se almacenan off-chain; on-chain solo vive el estado del caso y los montos.
-- La versión de producción integraría un proveedor KYC certificado (ej. verificación de cédula + prueba de vida) en vez del hash de demo.
+- KYC es un paso independiente y único por wallet (`POST /users/register`): nombre + foto de la cédula, guardada en un bucket privado de Storage (`owner-id-photos`), nunca expuesta en el tablero público. Hoy queda disponible para revisión manual del validador; no hay verificación automática del documento todavía.
+- Las fotos de referencia, de pistas y del documento de compra-venta se almacenan off-chain; on-chain solo vive el estado del caso y los montos.
+- La versión de producción integraría un proveedor KYC certificado (verificación automática de la cédula + prueba de vida) en vez de la revisión manual actual.
 
 ## Mitigación de fraude / pistas falsas
 
@@ -70,4 +70,6 @@
 
 - **Red**: HSK Chain Testnet para el hackathon (mainnet-ready; el contrato no tiene dependencias específicas de testnet).
 - **Faucet testnet**: https://hskchain.net/faucet
-- Dirección del contrato desplegado: *(completar tras el despliegue — ver `scripts/deploy.js`)*.
+- Dirección del contrato desplegado: `0x0C8dA3431EDF2Fe388577F90655D77b0feC49b0e` (verificado en Blockscout).
+- Frontend: https://autochain-hsk.vercel.app — API: https://autochain-hsk-api.vercel.app
+- **Estado del servicio de IA (CLIP)**: probado y funcional en local (`ai_matching_service.py`); aún no desplegado en producción por el límite de tamaño de las funciones serverless de Vercel (ver README). En producción, las pistas se registran igual pero quedan marcadas `ai_unavailable: true` hasta que ese servicio esté en línea.
