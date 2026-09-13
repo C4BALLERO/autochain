@@ -2,5 +2,6 @@
 __pycache__
 *.pyc
 ai_matching_service.py
+modal_app.py
 requirements-ai.txt
 supabase_schema.sql
