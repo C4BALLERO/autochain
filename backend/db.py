@@ -67,6 +67,17 @@ def get_vehicle(vehicle_id: str) -> Optional[dict]:
     return res.data[0] if res.data else None
 
 
+def list_vehicles_by_wallet(owner_wallet: str) -> list[dict]:
+    res = (
+        supabase.table("vehicles")
+        .select("*")
+        .ilike("owner_wallet", owner_wallet)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return res.data
+
+
 def upload_vehicle_photo(vehicle_id: str, index: int, content: bytes, content_type: str) -> None:
     path = f"{vehicle_id}/{index}.jpg"
     supabase.storage.from_(VEHICLE_PHOTOS_BUCKET).upload(

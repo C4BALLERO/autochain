@@ -193,6 +193,26 @@ async def get_user_id_photo(owner_wallet: str):
     return Response(content=content, media_type="image/jpeg")
 
 
+@app.get("/vehicles")
+async def list_my_vehicles(owner_wallet: str):
+    """Lets the frontend show a dropdown of "my registered vehicles" when
+    reporting a theft, instead of forcing the owner to fill the whole
+    registration form again for a car they already registered."""
+    rows = db.list_vehicles_by_wallet(owner_wallet)
+    return [
+        {
+            "vehicle_id": v["id"],
+            "plate": v["plate"],
+            "brand": v["brand"],
+            "model": v["model"],
+            "color": v["color"],
+            "year": v["year"],
+            "photo_count": v["photo_count"],
+        }
+        for v in rows
+    ]
+
+
 @app.get("/vehicles/{vehicle_id}")
 async def get_vehicle(vehicle_id: str):
     vehicle = db.get_vehicle(vehicle_id)

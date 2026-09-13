@@ -662,6 +662,23 @@
     <div id="reportFlow" style="display:none;">
     <button type="button" class="secondary small" onclick="backToChoice()" id="btn-back-choice" style="margin-bottom:18px;"></button>
 
+    <!-- Vehicle picker: only for "theft" mode — pick an already-registered car
+         instead of filling the whole registration form again. -->
+    <div class="stage active" id="stage-pick-vehicle" style="display:none;">
+      <h2>¿Cuál auto te robaron?</h2>
+      <p class="desc">Elige uno de tus autos ya registrados, o registra uno nuevo si aún no lo hiciste.</p>
+      <label>Tu wallet</label>
+      <div class="field-row">
+        <input type="text" id="pickWallet" placeholder="0xabc..." />
+        <button type="button" class="ghost" onclick="loadMyVehiclesForTheft()">Buscar mis autos</button>
+      </div>
+      <div class="result" id="pick-vehicle-result" style="display:none;"></div>
+      <select id="pickVehicleSelect" style="display:none;"></select>
+      <button type="button" id="btn-pick-vehicle" style="display:none;" onclick="selectStolenVehicle()">Fue este auto</button>
+      <br/><br/>
+      <button type="button" class="secondary small" onclick="showNewVehicleForm()">No está en la lista — registrar un auto nuevo</button>
+    </div>
+
     <!-- STAGE 1: Reporta -->
     <div class="stage active" id="stage-register">
       <h2><span class="n">1.</span> Reporta — registra tu vehículo</h2>
@@ -1289,7 +1306,9 @@
     document.getElementById("reportChoice").style.display = "none";
     document.getElementById("reportFlow").style.display = "block";
     const registerOnly = mode === "register";
-    document.getElementById("stage-register").style.display = "block";
+    const theftMode = mode === "theft";
+    document.getElementById("stage-pick-vehicle").style.display = theftMode ? "block" : "none";
+    document.getElementById("stage-register").style.display = theftMode ? "none" : "block";
     document.getElementById("stage-case").style.display = registerOnly ? "none" : "block";
     document.getElementById("stage-tip").style.display = registerOnly ? "none" : "block";
     document.getElementById("stage-validate").style.display = registerOnly ? "none" : "block";
@@ -1297,7 +1316,65 @@
     document.getElementById("stage-register").querySelector("h2").innerHTML = registerOnly
       ? "Registra tu vehículo"
       : '<span class="n">1.</span> Reporta — registra tu vehículo';
+    if (theftMode) {
+      document.getElementById("pickWallet").value = localStorage.getItem("autochain_owner_wallet") || "";
+      document.getElementById("pick-vehicle-result").style.display = "none";
+      document.getElementById("pickVehicleSelect").style.display = "none";
+      document.getElementById("btn-pick-vehicle").style.display = "none";
+      if (document.getElementById("pickWallet").value) loadMyVehiclesForTheft();
+    }
     document.getElementById("reportFlow").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function loadMyVehiclesForTheft() {
+    const wallet = document.getElementById("pickWallet").value;
+    const box = document.getElementById("pick-vehicle-result");
+    const select = document.getElementById("pickVehicleSelect");
+    const pickBtn = document.getElementById("btn-pick-vehicle");
+    if (!wallet) return alert("Ingresa tu wallet para buscar tus autos.");
+
+    box.style.display = "block";
+    box.innerText = "Buscando…";
+    select.style.display = "none";
+    pickBtn.style.display = "none";
+
+    const res = await fetch(`${API_BASE}/vehicles?owner_wallet=${encodeURIComponent(wallet)}`);
+    const vehicles = await res.json();
+
+    if (!vehicles.length) {
+      box.innerText = "No encontramos autos registrados con esa wallet. Registra uno nuevo abajo.";
+      return;
+    }
+    box.style.display = "none";
+    select.innerHTML = vehicles
+      .map((v) => `<option value="${v.vehicle_id}">${v.plate} — ${v.brand} ${v.model} (${v.color}, ${v.year})</option>`)
+      .join("");
+    select.style.display = "block";
+    pickBtn.style.display = "inline-block";
+  }
+
+  function selectStolenVehicle() {
+    const select = document.getElementById("pickVehicleSelect");
+    const option = select.options[select.selectedIndex];
+    if (!option) return;
+    vehicleId = option.value;
+    const [plate, rest] = option.innerText.split(" — ");
+
+    document.getElementById("vehiclePhoto").src = `${API_BASE}/vehicles/${vehicleId}/photo?index=0&t=${Date.now()}`;
+    document.getElementById("vehiclePlateLabel").innerText = option.innerText;
+    document.getElementById("vehicleContext").style.display = "flex";
+
+    document.getElementById("stage-pick-vehicle").style.display = "none";
+    markDone("stage-pick-vehicle");
+    markActive("stage-case");
+    document.getElementById("btn-case").disabled = false;
+    document.getElementById("stage-case").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function showNewVehicleForm() {
+    document.getElementById("stage-pick-vehicle").style.display = "none";
+    document.getElementById("stage-register").style.display = "block";
+    document.getElementById("stage-register").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function backToChoice() {
