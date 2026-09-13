@@ -937,6 +937,69 @@
     document.getElementById(id).scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  // Fotos de celular reales pesan varios MB cada una, y la API (función
+  // serverless de Vercel) rechaza pedidos de más de ~4.5MB con un error que
+  // no es JSON. Recomprimimos cada imagen en el navegador antes de subirla
+  // para que quepa cómodamente, sin depender de que el usuario lo haga a mano.
+  function compressImage(file, maxDim = 1600, quality = 0.82) {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith("image/") || file.type === "image/gif") {
+        return resolve(file); // no tocar videos, gifs animados, etc.
+      }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => resolve(blob && blob.size < file.size ? new File([blob], file.name, { type: "image/jpeg" }) : file),
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => resolve(file); // si algo falla, sube el original
+      img.src = url;
+    });
+  }
+
+  async function compressImages(fileList) {
+    return Promise.all(Array.from(fileList).map((f) => compressImage(f)));
+  }
+
+  // Wrapper de fetch que nunca falla en silencio: si el servidor responde
+  // con algo que no es JSON (ej. el 413 de arriba, o un error 500 genérico),
+  // avisa con una alerta legible en vez de dejar el botón "colgado".
+  async function postForm(url, form, errorContext) {
+    let res;
+    try {
+      res = await fetch(url, { method: "POST", body: form });
+    } catch (err) {
+      alert(`No se pudo conectar con el servidor (${errorContext}). Revisa tu conexión e intenta de nuevo.`);
+      throw err;
+    }
+    let data;
+    try {
+      data = await res.json();
+    } catch (err) {
+      alert(
+        res.status === 413
+          ? `Los archivos son demasiado pesados (${errorContext}). Intenta con menos fotos o de menor resolución.`
+          : `Error del servidor al ${errorContext} (código ${res.status}). Intenta de nuevo.`
+      );
+      throw err;
+    }
+    if (!res.ok) {
+      alert(`No se pudo ${errorContext}: ${data.detail || data.error || "error desconocido"}`);
+      throw new Error(data.detail || data.error || `HTTP ${res.status}`);
+    }
+    return data;
+  }
+
   // Local preview for one or more selected files, images and videos alike —
   // nothing is uploaded yet, just object URLs rendered client-side.
   function previewFiles(input, galleryId) {
@@ -1259,12 +1322,13 @@
     }
 
     const form = new FormData();
-    form.append("id_photo", idPhoto);
+    form.append("id_photo", await compressImage(idPhoto));
     const params = new URLSearchParams({ owner_wallet: ownerWallet, owner_name: ownerName });
-    const res = await fetch(`${API_BASE}/users/register?${params}`, { method: "POST", body: form });
     const box = document.getElementById("result-kyc");
     box.style.display = "block";
-    if (!res.ok) {
+    try {
+      await postForm(`${API_BASE}/users/register?${params}`, form, "verificar tu identidad");
+    } catch (err) {
       box.classList.remove("success");
       box.innerHTML = `${ICONS.check} No se pudo verificar tu identidad. Revisa los datos e intenta de nuevo.`;
       return;
@@ -1291,15 +1355,20 @@
     }
 
     const form = new FormData();
-    Array.from(files).forEach((f) => form.append("reference_photos", f));
-    form.append("ownership_document", ownershipDoc);
+    const compressedFiles = await compressImages(files);
+    compressedFiles.forEach((f) => form.append("reference_photos", f));
+    form.append("ownership_document", await compressImage(ownershipDoc));
 
     const params = new URLSearchParams({
       owner_name: ownerName, plate, doc_id_hash: "demo-hash", owner_wallet: ownerWallet,
       brand, model, color, year, ruat_number: ruatNumber, description,
     });
-    const res = await fetch(`${API_BASE}/vehicles/register?${params}`, { method: "POST", body: form });
-    const data = await res.json();
+    let data;
+    try {
+      data = await postForm(`${API_BASE}/vehicles/register?${params}`, form, "registrar el vehículo");
+    } catch (err) {
+      return;
+    }
     vehicleId = data.vehicle_id;
     localStorage.setItem("autochain_owner_wallet", ownerWallet);
 
@@ -1397,7 +1466,8 @@
 
     const form = new FormData();
     form.append("collaborator_wallet", wallet);
-    Array.from(files).forEach((f) => form.append("tip_photos", f));
+    const compressedFiles = await compressImages(files);
+    compressedFiles.forEach((f) => form.append("tip_photos", f));
     if (locationNote) form.append("location_note", locationNote);
     if (capturedLocation) {
       form.append("latitude", capturedLocation.latitude);
@@ -1406,8 +1476,13 @@
 
     document.getElementById("result-validate").innerText = "Analizando con IA…";
 
-    const res = await fetch(`${API_BASE}/cases/${caseId}/tips`, { method: "POST", body: form });
-    const data = await res.json();
+    let data;
+    try {
+      data = await postForm(`${API_BASE}/cases/${caseId}/tips`, form, "enviar la pista");
+    } catch (err) {
+      document.getElementById("result-validate").innerText = "";
+      return;
+    }
 
     const tierBox = document.getElementById("result-validate");
     tierBox.innerHTML = `Similitud: <b>${(data.similarity * 100).toFixed(1)}%</b>
